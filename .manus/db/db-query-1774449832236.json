@@ -1,0 +1,94 @@
+{
+  "query": "\nSELECT \n  status,\n  entityType,\n  type,\n  COUNT(*) as count,\n  SUM(amount) as total\nFROM transactions\nGROUP BY status, entityType, type\nORDER BY status, entityType, type;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute \nSELECT \n  status,\n  entityType,\n  type,\n  COUNT(*) as count,\n  SUM(amount) as total\nFROM transactions\nGROUP BY status, entityType, type\nORDER BY status, entityType, type;\n",
+  "rows": [
+    {
+      "status": "paid",
+      "entityType": "PJ",
+      "type": "income",
+      "count": "3",
+      "total": "26543.83"
+    },
+    {
+      "status": "paid",
+      "entityType": "PJ",
+      "type": "expense",
+      "count": "101",
+      "total": "134966.69"
+    },
+    {
+      "status": "paid",
+      "entityType": "PJ",
+      "type": "transfer",
+      "count": "5",
+      "total": "73422.80"
+    },
+    {
+      "status": "paid",
+      "entityType": "PF",
+      "type": "expense",
+      "count": "46",
+      "total": "66864.52"
+    },
+    {
+      "status": "paid",
+      "entityType": "PF",
+      "type": "transfer",
+      "count": "4",
+      "total": "33500.00"
+    },
+    {
+      "status": "pending",
+      "entityType": "PJ",
+      "type": "expense",
+      "count": "1",
+      "total": "1970.80"
+    },
+    {
+      "status": "pending",
+      "entityType": "PF",
+      "type": "expense",
+      "count": "19",
+      "total": "17761.81"
+    },
+    {
+      "status": "overdue",
+      "entityType": "PJ",
+      "type": "expense",
+      "count": "10",
+      "total": "21835.75"
+    },
+    {
+      "status": "overdue",
+      "entityType": "PF",
+      "type": "expense",
+      "count": "1",
+      "total": "229.96"
+    },
+    {
+      "status": "legal",
+      "entityType": "PJ",
+      "type": "expense",
+      "count": "72",
+      "total": "72.00"
+    },
+    {
+      "status": "legal",
+      "entityType": "PF",
+      "type": "expense",
+      "count": "12",
+      "total": "12.00"
+    },
+    {
+      "status": "scheduled",
+      "entityType": "PJ",
+      "type": "expense",
+      "count": "4",
+      "total": "2970.62"
+    }
+  ],
+  "messages": [],
+  "stdout": "status\tentityType\ttype\tcount\ttotal\npaid\tPJ\tincome\t3\t26543.83\npaid\tPJ\texpense\t101\t134966.69\npaid\tPJ\ttransfer\t5\t73422.80\npaid\tPF\texpense\t46\t66864.52\npaid\tPF\ttransfer\t4\t33500.00\npending\tPJ\texpense\t1\t1970.80\npending\tPF\texpense\t19\t17761.81\noverdue\tPJ\texpense\t10\t21835.75\noverdue\tPF\texpense\t1\t229.96\nlegal\tPJ\texpense\t72\t72.00\nlegal\tPF\texpense\t12\t12.00\nscheduled\tPJ\texpense\t4\t2970.62\n",
+  "stderr": "",
+  "execution_time_ms": 68
+}

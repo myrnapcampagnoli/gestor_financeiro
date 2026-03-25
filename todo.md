@@ -60,6 +60,8 @@
 
 ## Correções
 - [x] Corrigir erro nested anchor tags no Dashboard
+- [x] Investigar saldo -175k (verificar se jurídico está sendo excluído e se dados estão completos)
+- [x] Corrigir valor jurídico: era 84 registros × R$1 = R$84, agora 1 registro = R$93.417,46
 - [ ] Corrigir erro OAuth Gmail (Client missing project id - precisa de Google Cloud Project)
 - [ ] Criar Google Sheets completo com backup no Drive
 - [x] Confirmar que jurídico é excluído do saldo (já implementado no dashboard router)

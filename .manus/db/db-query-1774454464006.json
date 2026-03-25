@@ -1,0 +1,58 @@
+{
+  "query": "\n-- Remover todos os registros jurídicos importados incorretamente\nDELETE FROM transactions WHERE status = 'legal';\n\n-- Inserir o registro correto do jurídico (saldo devedor Bradesco PJ)\nINSERT INTO transactions (userId, description, amount, type, entityType, paymentMethod, status, dueDate, notes, source, isRecurring, createdAt, updatedAt)\nVALUES (\n  1,\n  'Jurídico — Bradesco PJ (PRONAMPE + FGI 1/2/3/4 + Garden) — Saldo Devedor',\n  93417.46,\n  'expense',\n  'PJ',\n  'other',\n  'legal',\n  NULL,\n  'Saldo devedor total em processo jurídico. NÃO PAGAR SEM INSTRUÇÃO DO ADVOGADO. Inclui: PRONAMPE, FGI 1, FGI 2, FGI 3, FGI 4 e Garden (todos Bradesco PJ).',\n  'import_excel',\n  0,\n  NOW(),\n  NOW()\n);\n\n-- Verificar resultado\nSELECT status, entityType, COUNT(*) as count, SUM(amount) as total FROM transactions GROUP BY status, entityType ORDER BY status;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute \n-- Remover todos os registros jurídicos importados incorretamente\nDELETE FROM transactions WHERE status = 'legal';\n\n-- Inserir o registro correto do jurídico (saldo devedor Bradesco PJ)\nINSERT INTO transactions (userId, description, amount, type, entityType, paymentMethod, status, dueDate, notes, source, isRecurring, createdAt, updatedAt)\nVALUES (\n  1,\n  'Jurídico — Bradesco PJ (PRONAMPE + FGI 1/2/3/4 + Garden) — Saldo Devedor',\n  93417.46,\n  'expense',\n  'PJ',\n  'other',\n  'legal',\n  NULL,\n  'Saldo devedor total em processo jurídico. NÃO PAGAR SEM INSTRUÇÃO DO ADVOGADO. Inclui: PRONAMPE, FGI 1, FGI 2, FGI 3, FGI 4 e Garden (todos Bradesco PJ).',\n  'import_excel',\n  0,\n  NOW(),\n  NOW()\n);\n\n-- Verificar resultado\nSELECT status, entityType, COUNT(*) as count, SUM(amount) as total FROM transactions GROUP BY status, entityType ORDER BY status;\n",
+  "rows": [
+    {
+      "status": "paid",
+      "entityType": "PJ",
+      "count": "109",
+      "total": "234933.32"
+    },
+    {
+      "status": "paid",
+      "entityType": "PF",
+      "count": "50",
+      "total": "100364.52"
+    },
+    {
+      "status": "pending",
+      "entityType": "PJ",
+      "count": "1",
+      "total": "1970.80"
+    },
+    {
+      "status": "pending",
+      "entityType": "PF",
+      "count": "19",
+      "total": "17761.81"
+    },
+    {
+      "status": "overdue",
+      "entityType": "PJ",
+      "count": "10",
+      "total": "21835.75"
+    },
+    {
+      "status": "overdue",
+      "entityType": "PF",
+      "count": "1",
+      "total": "229.96"
+    },
+    {
+      "status": "legal",
+      "entityType": "PJ",
+      "count": "1",
+      "total": "93417.46"
+    },
+    {
+      "status": "scheduled",
+      "entityType": "PJ",
+      "count": "4",
+      "total": "2970.62"
+    }
+  ],
+  "messages": [],
+  "stdout": "status\tentityType\tcount\ttotal\npaid\tPJ\t109\t234933.32\npaid\tPF\t50\t100364.52\npending\tPJ\t1\t1970.80\npending\tPF\t19\t17761.81\noverdue\tPJ\t10\t21835.75\noverdue\tPF\t1\t229.96\nlegal\tPJ\t1\t93417.46\nscheduled\tPJ\t4\t2970.62\n",
+  "stderr": "",
+  "execution_time_ms": 3718
+}
