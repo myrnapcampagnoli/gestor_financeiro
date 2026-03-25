@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -70,6 +71,13 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.623 0.214 259.815);
+  --status-paid: oklch(0.55 0.18 145);
+  --status-pending: oklch(0.65 0.18 55);
+  --status-overdue: oklch(0.55 0.22 25);
+  --status-legal: oklch(0.55 0.01 240);
+  --status-scheduled: oklch(0.55 0.15 240);
+  --pj: oklch(0.40 0.15 240);
+  --pf: oklch(0.55 0.18 290);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.235 0.015 65);
   --sidebar-accent: oklch(0.967 0.001 286.375);
@@ -119,6 +127,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
