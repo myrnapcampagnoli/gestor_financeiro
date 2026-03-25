@@ -74,35 +74,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map(({ path, label, icon: Icon }) => (
-            <Link key={path} href={path}>
-              <a className={cn(
+            <Link
+              key={path}
+              href={path}
+              className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                 location === path
                   ? "bg-blue-50 text-blue-700"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}>
-                <Icon className="w-4 h-4 shrink-0" />
-                {label}
-                {label === "Gmail" && unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 h-5">{unreadCount}</Badge>
-                )}
-              </a>
+              )}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+              {label === "Gmail" && unreadCount > 0 && (
+                <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 h-5">{unreadCount}</Badge>
+              )}
             </Link>
           ))}
         </nav>
 
         <div className="p-3 border-t border-border space-y-1">
-          <Link href="/nova-transacao">
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-              <Plus className="w-4 h-4" />
-              Nova Transação
-            </a>
+          <Link
+            href="/nova-transacao"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Transação
           </Link>
-          <Link href="/configuracoes">
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-              <Settings className="w-4 h-4" />
-              Configurações
-            </a>
+          <Link
+            href="/configuracoes"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Configurações
           </Link>
           <button
             onClick={() => logout()}
@@ -135,23 +139,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <nav className="flex-1 p-3 space-y-1">
               {navItems.map(({ path, label, icon: Icon }) => (
-                <Link key={path} href={path}>
-                  <a onClick={() => setSidebarOpen(false)} className={cn(
+                <Link
+                  key={path}
+                  href={path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
                     "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors",
                     location === path ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:bg-muted"
-                  )}>
-                    <Icon className="w-5 h-5" />
-                    {label}
-                  </a>
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {label}
                 </Link>
               ))}
             </nav>
             <div className="p-3 border-t border-border space-y-1">
-              <Link href="/nova-transacao">
-                <a onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium bg-blue-600 text-white">
-                  <Plus className="w-5 h-5" />
-                  Nova Transação
-                </a>
+              <Link
+                href="/nova-transacao"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium bg-blue-600 text-white"
+              >
+                <Plus className="w-5 h-5" />
+                Nova Transação
               </Link>
               <button onClick={() => logout()} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted w-full">
                 <LogOut className="w-5 h-5" />
@@ -175,15 +184,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="font-bold text-sm">Gestor Financeiro</span>
           </div>
-          <Link href="/notificacoes">
-            <a className="relative p-2 rounded-lg hover:bg-muted -mr-2">
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </a>
+          <Link
+            href="/notificacoes"
+            className="relative p-2 rounded-lg hover:bg-muted -mr-2"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </Link>
         </header>
 
@@ -195,23 +205,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile Bottom Nav */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border flex items-center justify-around px-2 py-2 safe-bottom">
           {navItems.slice(0, 4).map(({ path, label, icon: Icon }) => (
-            <Link key={path} href={path}>
-              <a className={cn(
+            <Link
+              key={path}
+              href={path}
+              className={cn(
                 "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-[60px]",
                 location === path ? "text-blue-600" : "text-muted-foreground"
-              )}>
-                <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{label}</span>
-              </a>
+              )}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{label}</span>
             </Link>
           ))}
-          <Link href="/nova-transacao">
-            <a className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-[60px] text-muted-foreground">
-              <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center -mt-5 shadow-lg">
-                <Plus className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-[10px] font-medium mt-0.5">Novo</span>
-            </a>
+          <Link
+            href="/nova-transacao"
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-[60px] text-muted-foreground"
+          >
+            <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center -mt-5 shadow-lg">
+              <Plus className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-[10px] font-medium mt-0.5">Novo</span>
           </Link>
         </nav>
       </div>
