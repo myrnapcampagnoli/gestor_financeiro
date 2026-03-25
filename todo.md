@@ -58,6 +58,12 @@
 - [ ] Relatórios mensais em PDF
 - [ ] Gráficos de fluxo de caixa
 
+## Correções
+- [x] Corrigir erro nested anchor tags no Dashboard
+- [ ] Corrigir erro OAuth Gmail (Client missing project id - precisa de Google Cloud Project)
+- [ ] Criar Google Sheets completo com backup no Drive
+- [x] Confirmar que jurídico é excluído do saldo (já implementado no dashboard router)
+
 ## Importação de Dados
 - [ ] Ler e mapear todas as abas do Excel controle_myrna_v7.xlsx
 - [ ] Script de importação para o banco de dados via API

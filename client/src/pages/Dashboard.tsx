@@ -48,15 +48,13 @@ export default function Dashboard() {
           </p>
         </div>
         {unread.length > 0 && (
-          <Link href="/notificacoes">
-            <a className="relative">
-              <div className="p-2 rounded-xl bg-red-50 border border-red-100">
-                <Bell className="w-5 h-5 text-red-600" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                  {unread.length}
-                </span>
-              </div>
-            </a>
+          <Link href="/notificacoes" className="relative">
+            <div className="p-2 rounded-xl bg-red-50 border border-red-100">
+              <Bell className="w-5 h-5 text-red-600" />
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                {unread.length}
+              </span>
+            </div>
           </Link>
         )}
       </div>
@@ -178,9 +176,7 @@ export default function Dashboard() {
                 <Calendar className="w-4 h-4 text-blue-600" />
                 Próximos Vencimentos
               </CardTitle>
-              <Link href="/contas">
-                <a className="text-xs text-blue-600 font-medium">Ver todos</a>
-              </Link>
+              <Link href="/contas" className="text-xs text-blue-600 font-medium">Ver todos</Link>
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-2">
@@ -235,17 +231,13 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3 pb-2">
-        <Link href="/nova-transacao">
-          <a className="flex items-center gap-2 p-3 rounded-xl bg-blue-600 text-white font-medium text-sm justify-center hover:bg-blue-700 transition-colors">
-            <ArrowDownCircle className="w-4 h-4" />
-            Registrar Gasto
-          </a>
+        <Link href="/nova-transacao" className="flex items-center gap-2 p-3 rounded-xl bg-blue-600 text-white font-medium text-sm justify-center hover:bg-blue-700 transition-colors">
+          <ArrowDownCircle className="w-4 h-4" />
+          Registrar Gasto
         </Link>
-        <Link href="/nova-transacao?type=income">
-          <a className="flex items-center gap-2 p-3 rounded-xl bg-green-600 text-white font-medium text-sm justify-center hover:bg-green-700 transition-colors">
-            <ArrowUpCircle className="w-4 h-4" />
-            Registrar Entrada
-          </a>
+        <Link href="/nova-transacao?type=income" className="flex items-center gap-2 p-3 rounded-xl bg-green-600 text-white font-medium text-sm justify-center hover:bg-green-700 transition-colors">
+          <ArrowUpCircle className="w-4 h-4" />
+          Registrar Entrada
         </Link>
       </div>
     </div>
