@@ -57,3 +57,9 @@
 - [ ] Notificações por email (SMTP)
 - [ ] Relatórios mensais em PDF
 - [ ] Gráficos de fluxo de caixa
+
+## Importação de Dados
+- [ ] Ler e mapear todas as abas do Excel controle_myrna_v7.xlsx
+- [ ] Script de importação para o banco de dados via API
+- [ ] Verificar dados importados no dashboard
+- [ ] Busca automática no Gmail (configurar e testar)
