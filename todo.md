@@ -52,7 +52,13 @@
 - [x] Vitest: transactions.create validação
 
 ## Pendente / Futuro
-- [ ] Importação de PDF diretamente (upload de arquivo)
+- [x] Importação de PDF diretamente (upload de arquivo) - EM PROGRESSO
+- [x] Upload de CSV/Excel/PDF com parser e preview antes de importar
+- [x] Endpoint REST multipart para upload de arquivo
+- [x] Parser CSV (extratos bancários)
+- [x] Parser Excel (.xlsx)
+- [x] Parser PDF (contas/boletos)
+- [x] Página /importar com UI mobile-friendly
 - [ ] Sincronização automática Dropbox/OneDrive
 - [ ] Notificações por email (SMTP)
 - [ ] Relatórios mensais em PDF

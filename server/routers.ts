@@ -234,6 +234,47 @@ export const appRouter = router({
     listImports: protectedProcedure.query(async ({ ctx }) => getGmailImports(ctx.user.id)),
   }),
 
+  import: router({
+    bulk: protectedProcedure.input(z.object({
+      transactions: z.array(z.object({
+        description: z.string().min(1),
+        amount: z.number().positive(),
+        type: z.enum(['income','expense','transfer']),
+        entityType: z.enum(['PJ','PF']),
+        paymentMethod: z.enum(['credit','debit','pix','cash','boleto','other']).optional(),
+        status: z.enum(['paid','pending','overdue','legal','scheduled']).optional(),
+        dueDate: z.date().optional(),
+        notes: z.string().optional(),
+        categoryId: z.number().optional(),
+      })),
+      source: z.enum(['import_csv','import_excel','import_pdf']).optional(),
+    })).mutation(async ({ ctx, input }) => {
+      let imported = 0;
+      for (const tx of input.transactions) {
+        await createTransaction({
+          userId: ctx.user.id,
+          description: tx.description,
+          amount: tx.amount.toFixed(2),
+          type: tx.type,
+          entityType: tx.entityType,
+          paymentMethod: tx.paymentMethod || 'other',
+          status: tx.status || 'pending',
+          dueDate: tx.dueDate,
+          notes: tx.notes,
+          categoryId: tx.categoryId,
+          source: input.source || 'import_csv',
+        });
+        imported++;
+      }
+      await createNotification(ctx.user.id, {
+        title: 'Importação concluída',
+        message: `${imported} transação(ões) importada(s) com sucesso.`,
+        type: 'imported',
+      });
+      return { success: true, imported };
+    }),
+  }),
+
   export: router({
     csv: protectedProcedure.query(async ({ ctx }) => {
       const txs = await getTransactions(ctx.user.id);

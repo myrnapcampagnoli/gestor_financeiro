@@ -12,7 +12,8 @@ import Calendario from "./pages/Calendario";
 import Gmail from "./pages/Gmail";
 import NovaTransacao from "./pages/NovaTransacao";
 import Notificacoes from "./pages/Notificacoes";
-import Configuracoes from "./pages/Configuracoes";
+import Configuracoes from "@/pages/Configuracoes";
+import Importar from "@/pages/Importar";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/nova-transacao" component={NovaTransacao} />
         <Route path="/notificacoes" component={Notificacoes} />
         <Route path="/configuracoes" component={Configuracoes} />
+        <Route path="/importar" component={Importar} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

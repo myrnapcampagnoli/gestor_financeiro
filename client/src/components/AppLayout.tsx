@@ -3,7 +3,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
-  Bell, Calendar, CreditCard, FileText, Home, LogOut, Mail, Menu, Plus, Settings, X
+  Bell, Calendar, CreditCard, FileText, Home, LogOut, Mail, Menu, Plus, Settings, Upload, X
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -15,6 +15,7 @@ const navItems = [
   { path: "/contas", label: "Contas", icon: CreditCard },
   { path: "/historico", label: "Histórico", icon: FileText },
   { path: "/calendario", label: "Calendário", icon: Calendar },
+  { path: "/importar", label: "Importar", icon: Upload },
   { path: "/gmail", label: "Gmail", icon: Mail },
 ];
 
