@@ -276,11 +276,13 @@ export function parseExcel(buffer: Buffer): ParsedTransaction[] {
 // ─── PDF Parser ──────────────────────────────────────────────────────────────
 
 export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
-  // Dynamic import to avoid issues at module load time
+  // pdf-parse v2 uses a class-based API (PDFParse), not a default function
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfModule = await import("pdf-parse") as any;
-  const pdfParse = pdfModule.default || pdfModule;
-  const data = await pdfParse(buffer);
+  const PDFParseClass = pdfModule.PDFParse;
+  const parser = new PDFParseClass({});
+  await parser.load(buffer);
+  const data = { text: await parser.getText() };
   const text = data.text;
 
   const results: ParsedTransaction[] = [];
