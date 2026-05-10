@@ -12,6 +12,25 @@ import { Link } from "wouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type DuplicateStatus = 'new' | 'duplicate_exact' | 'duplicate_similar';
+
+interface DuplicateInfo {
+  id: number;
+  description: string;
+  amount: number;
+  dueDate?: Date | null;
+  status: string;
+}
+
+interface DuplicateResult {
+  index: number;
+  status: DuplicateStatus;
+  duplicates: DuplicateInfo[];
+}
+
+// Per-row action chosen by user: 'import' | 'skip' | 'replace'
+type DuplicateAction = 'import' | 'skip' | 'replace';
+
 interface BoletoData {
   linhaDigitavel?: string;
   codigoBarras?: string;
@@ -271,6 +290,21 @@ export default function Importar() {
   const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Duplicate detection state
+  const [duplicateResults, setDuplicateResults] = useState<DuplicateResult[]>([]);
+  const [duplicateActions, setDuplicateActions] = useState<Record<number, DuplicateAction>>({});
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
+  const checkDuplicates = trpc.import.checkDuplicates.useMutation();
+
+  const getDuplicateResult = (i: number): DuplicateResult | undefined =>
+    duplicateResults.find((r) => r.index === i);
+
+  const getDuplicateAction = (i: number): DuplicateAction => duplicateActions[i] ?? 'import';
+
+  const setDuplicateAction = (i: number, action: DuplicateAction) =>
+    setDuplicateActions((prev) => ({ ...prev, [i]: action }));
+
   const bulkImport = trpc.import.bulk.useMutation({
     onSuccess: (data) => {
       toast.success(`${data.imported} transação(ões) importada(s) com sucesso!`);
@@ -306,8 +340,26 @@ export default function Importar() {
       setTransactions(txs);
       setSelected(new Set(txs.map((_, i) => i)));
       setSelectAll(true);
+      setDuplicateResults([]);
+      setDuplicateActions({});
       setStep("preview");
       toast.success(`${data.count} transação(ões) detectada(s). Revise antes de importar.`);
+      // Check for duplicates in background
+      setCheckingDuplicates(true);
+      checkDuplicates.mutate(
+        { transactions: txs.map((t) => ({ description: t.description, amount: t.amount, dueDate: t.dueDate ? new Date(t.dueDate) : undefined })) },
+        {
+          onSuccess: (results) => {
+            setDuplicateResults(results);
+            const dupeCount = results.filter((r) => r.status !== 'new').length;
+            if (dupeCount > 0) {
+              toast.warning(`${dupeCount} transação(ões) podem ser duplicatas. Verifique antes de importar.`);
+            }
+            setCheckingDuplicates(false);
+          },
+          onError: () => setCheckingDuplicates(false),
+        }
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       toast.error(msg);
@@ -364,15 +416,28 @@ export default function Importar() {
     });
   };
 
-  // ── Import ───────────────────────────────────────────────────────────────
+  // ── Import ────────────────────────────────────────────────────────────────────────────────
 
   const handleImport = () => {
     const toImport = transactions
-      .filter((_, i) => selected.has(i))
-      .map((t) => ({
-        ...t,
-        dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
-      }));
+      .filter((_, i) => {
+        if (!selected.has(i)) return false;
+        const action = getDuplicateAction(i);
+        return action !== 'skip';
+      })
+      .map((t) => {
+        const origIndex = transactions.indexOf(t);
+        const dupeResult = getDuplicateResult(origIndex);
+        const action = getDuplicateAction(origIndex);
+        const replaceId = action === 'replace' && dupeResult?.duplicates[0]?.id
+          ? dupeResult.duplicates[0].id
+          : undefined;
+        return {
+          ...t,
+          dueDate: t.dueDate ? new Date(t.dueDate) : undefined,
+          replaceId,
+        };
+      });
 
     if (toImport.length === 0) {
       toast.warning("Selecione ao menos uma transação para importar.");
@@ -382,7 +447,7 @@ export default function Importar() {
     bulkImport.mutate({ transactions: toImport, source });
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ────────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -513,21 +578,94 @@ export default function Importar() {
             <BoletoCard boleto={transactions.find((t) => t.boleto?.isBoleto)!.boleto!} />
           )}
 
+          {/* Duplicate check status banner */}
+          {checkingDuplicates && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Verificando duplicatas...
+            </div>
+          )}
+          {!checkingDuplicates && duplicateResults.some((r) => r.status !== 'new') && (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <span className="text-xs text-amber-800 font-medium">
+                ⚠️ {duplicateResults.filter((r) => r.status !== 'new').length} possível(is) duplicata(s) encontrada(s)
+              </span>
+              <button
+                className="text-xs text-amber-700 underline"
+                onClick={() => {
+                  duplicateResults.filter((r) => r.status !== 'new').forEach((r) => setDuplicateAction(r.index, 'skip'));
+                }}
+              >
+                Pular todas
+              </button>
+            </div>
+          )}
+
           {/* Transaction list */}
           <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-            {transactions.map((tx, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={selected.has(i)}
-                  onChange={() => toggleOne(i)}
-                  className="mt-3 w-4 h-4 rounded accent-blue-600 shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <TxRow tx={tx} index={i} onUpdate={updateTx} onRemove={removeTx} />
+            {transactions.map((tx, i) => {
+              const dupeResult = getDuplicateResult(i);
+              const isDupe = dupeResult && dupeResult.status !== 'new';
+              const action = getDuplicateAction(i);
+              return (
+                <div key={i} className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(i)}
+                    onChange={() => toggleOne(i)}
+                    className="mt-3 w-4 h-4 rounded accent-blue-600 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <TxRow tx={tx} index={i} onUpdate={updateTx} onRemove={removeTx} />
+                    {isDupe && (
+                      <div className={`rounded-lg px-3 py-2 text-xs space-y-1.5 ${
+                        dupeResult.status === 'duplicate_exact'
+                          ? 'bg-red-50 border border-red-200'
+                          : 'bg-amber-50 border border-amber-200'
+                      }`}>
+                        <p className={`font-semibold ${
+                          dupeResult.status === 'duplicate_exact' ? 'text-red-700' : 'text-amber-700'
+                        }`}>
+                          {dupeResult.status === 'duplicate_exact' ? '🔴 Duplicata exata' : '🟡 Possível duplicata'} — já existe: &ldquo;{dupeResult.duplicates[0]?.description}&rdquo; ({dupeResult.duplicates[0]?.amount?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                        </p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setDuplicateAction(i, 'skip')}
+                            className={`px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${
+                              action === 'skip'
+                                ? 'bg-gray-600 text-white border-gray-600'
+                                : 'border-gray-400 text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            Pular
+                          </button>
+                          <button
+                            onClick={() => setDuplicateAction(i, 'import')}
+                            className={`px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${
+                              action === 'import'
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'border-blue-400 text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            Importar mesmo assim
+                          </button>
+                          <button
+                            onClick={() => setDuplicateAction(i, 'replace')}
+                            className={`px-2 py-0.5 rounded-full border text-xs font-medium transition-colors ${
+                              action === 'replace'
+                                ? 'bg-orange-600 text-white border-orange-600'
+                                : 'border-orange-400 text-orange-600 hover:bg-orange-50'
+                            }`}
+                          >
+                            Substituir existente
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Summary + Import button */}

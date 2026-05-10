@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, ne } from "drizzle-orm";
+import { and, between, desc, eq, gte, lte, ne, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { accounts, categories, gmailImports, installmentGroups, notifications, transactions, users } from "../drizzle/schema";
 import type { InsertTransaction, InsertUser } from "../drizzle/schema";
@@ -120,6 +120,36 @@ export async function updateTransaction(id: number, userId: number, data: Partia
 export async function deleteTransaction(id: number, userId: number) {
   const db = await getDb(); if (!db) throw new Error('DB not available');
   await db.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+}
+
+/**
+ * Find existing transactions that might be duplicates of a candidate.
+ * Criteria: same userId + same amount (±0.01) + dueDate within ±3 days + similar description (first 20 chars)
+ */
+export async function findPossibleDuplicates(
+  userId: number,
+  candidate: { amount: number; dueDate?: Date; description: string }
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const amountStr = candidate.amount.toFixed(2);
+  const amountNum = parseFloat(amountStr);
+  // Date window: ±3 days
+  const conditions: any[] = [
+    eq(transactions.userId, userId),
+    sql`ABS(CAST(${transactions.amount} AS DECIMAL(15,2)) - ${amountNum}) < 0.02`,
+  ];
+  if (candidate.dueDate) {
+    const d = new Date(candidate.dueDate);
+    const from = new Date(d); from.setDate(from.getDate() - 3);
+    const to = new Date(d); to.setDate(to.getDate() + 3);
+    conditions.push(gte(transactions.dueDate, from));
+    conditions.push(lte(transactions.dueDate, to));
+  }
+  const rows = await db.select().from(transactions).where(and(...conditions)).limit(5);
+  // Further filter by description similarity (first 15 chars, case-insensitive)
+  const prefix = candidate.description.toLowerCase().substring(0, 15).trim();
+  return rows.filter(r => r.description.toLowerCase().substring(0, 15).trim() === prefix || prefix === '');
 }
 
 export async function markTransactionPaid(id: number, userId: number) {

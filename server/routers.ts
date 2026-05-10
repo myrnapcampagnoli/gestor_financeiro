@@ -235,6 +235,41 @@ export const appRouter = router({
   }),
 
   import: router({
+    checkDuplicates: protectedProcedure.input(z.object({
+      transactions: z.array(z.object({
+        description: z.string(),
+        amount: z.number(),
+        dueDate: z.date().optional(),
+      })),
+    })).mutation(async ({ ctx, input }) => {
+      const { findPossibleDuplicates } = await import('./db');
+      const results = await Promise.all(
+        input.transactions.map(async (tx, index) => {
+          const dupes = await findPossibleDuplicates(ctx.user.id, tx);
+          if (dupes.length === 0) return { index, status: 'new' as const, duplicates: [] };
+          // Check if any is exact (same amount + same date)
+          const exact = dupes.find(d => {
+            const sameAmount = Math.abs(parseFloat(d.amount as string) - tx.amount) < 0.02;
+            if (!tx.dueDate || !d.dueDate) return sameAmount;
+            const diff = Math.abs(new Date(d.dueDate).getTime() - new Date(tx.dueDate).getTime());
+            return sameAmount && diff < 24 * 60 * 60 * 1000; // same day
+          });
+          return {
+            index,
+            status: exact ? 'duplicate_exact' as const : 'duplicate_similar' as const,
+            duplicates: dupes.map(d => ({
+              id: d.id,
+              description: d.description,
+              amount: parseFloat(d.amount as string),
+              dueDate: d.dueDate,
+              status: d.status,
+            })),
+          };
+        })
+      );
+      return results;
+    }),
+
     bulk: protectedProcedure.input(z.object({
       transactions: z.array(z.object({
         description: z.string().min(1),
@@ -246,11 +281,15 @@ export const appRouter = router({
         dueDate: z.date().optional(),
         notes: z.string().optional(),
         categoryId: z.number().optional(),
+        replaceId: z.number().optional(), // if set, delete existing and replace
       })),
       source: z.enum(['import_csv','import_excel','import_pdf']).optional(),
     })).mutation(async ({ ctx, input }) => {
       let imported = 0;
       for (const tx of input.transactions) {
+        if (tx.replaceId) {
+          await deleteTransaction(tx.replaceId, ctx.user.id);
+        }
         await createTransaction({
           userId: ctx.user.id,
           description: tx.description,

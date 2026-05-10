@@ -78,6 +78,13 @@
 - [ ] Verificar dados importados no dashboard
 - [ ] Busca automática no Gmail (configurar e testar)
 
+## Detecção de Duplicatas na Importação
+- [ ] Backend: procedure checkDuplicates que compara transações novas com o banco (data ±3 dias + valor igual + descrição similar)
+- [ ] Backend: retornar status de cada transação (nova, duplicata_exata, duplicata_similar)
+- [ ] UI: mostrar badge de duplicata no preview com transação existente para comparação
+- [ ] UI: botões por transação: Importar mesmo assim / Pular / Substituir existente
+- [ ] UI: botão "Pular todas duplicatas" e "Importar todas mesmo assim"
+
 ## Extração de Boletos PDF
 - [x] Parser de boleto: extrair vencimento, valor e linha digitável/código de barras
 - [x] UI: exibir linha digitável com botão de cópia rápida
