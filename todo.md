@@ -109,3 +109,17 @@
 - [ ] Opção 2: Backup automático semanal por e-mail (SMTP) com CSV anexado
 - [ ] Opção 2: Configuração de e-mail de destino em Configurações
 - [ ] Opção 2: Agendamento via periodic-updates (toda segunda-feira às 8h)
+
+## Visualização em Formato de Extrato Bancário
+- [x] Redesenhar Histórico como extrato: linhas com data, descrição, valor e saldo acumulado
+- [x] Saldo acumulado calculado cronologicamente (saldo anterior + entradas - saídas)
+- [x] Separador de mês com totais de entradas, saídas e saldo do mês
+- [x] Filtro por conta de origem (Nubank PF / Banco 301 PJ / Todas) - detectado via importedFrom
+- [x] Filtro por período (mês/ano com navegação ← → e pills de mês)
+- [x] Linha de saldo inicial do período
+- [x] Linha de saldo final do período
+- [x] Exportar extrato filtrado como CSV
+- [x] Badges de categoria automáticos (Imposto, Equipe, Casa, Consultorio, Financiamento, etc)
+- [x] Ícone PJ (azul) / PF (âmbar) por linha
+- [x] Transferencias internas identificadas e excluídas do saldo
+- [x] Legenda de cores e status na tela
