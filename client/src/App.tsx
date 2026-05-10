@@ -9,7 +9,6 @@ import Dashboard from "./pages/Dashboard";
 import Contas from "./pages/Contas";
 import Historico from "./pages/Historico";
 import Calendario from "./pages/Calendario";
-import Gmail from "./pages/Gmail";
 import NovaTransacao from "./pages/NovaTransacao";
 import Notificacoes from "./pages/Notificacoes";
 import Configuracoes from "@/pages/Configuracoes";
@@ -23,7 +22,6 @@ function Router() {
         <Route path="/contas" component={Contas} />
         <Route path="/historico" component={Historico} />
         <Route path="/calendario" component={Calendario} />
-        <Route path="/gmail" component={Gmail} />
         <Route path="/nova-transacao" component={NovaTransacao} />
         <Route path="/notificacoes" component={Notificacoes} />
         <Route path="/configuracoes" component={Configuracoes} />

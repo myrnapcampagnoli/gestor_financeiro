@@ -81,4 +81,5 @@
 ## Extração de Boletos PDF
 - [x] Parser de boleto: extrair vencimento, valor e linha digitável/código de barras
 - [x] UI: exibir linha digitável com botão de cópia rápida
-- [ ] Remover integração Gmail da navegação (não funciona sem Google Cloud)
+- [x] Remover integração Gmail da navegação (não funciona sem Google Cloud)
+- [x] Remover Gmail do menu, rota e página (usuária não vai usar Google Cloud)

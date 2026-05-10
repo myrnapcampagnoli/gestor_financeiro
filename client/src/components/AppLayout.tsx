@@ -3,7 +3,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
-  Bell, Calendar, CreditCard, FileText, Home, LogOut, Mail, Menu, Plus, Settings, Upload, X
+  Bell, Calendar, CreditCard, FileText, Home, LogOut, Menu, Plus, Settings, Upload, X
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -16,7 +16,6 @@ const navItems = [
   { path: "/historico", label: "Histórico", icon: FileText },
   { path: "/calendario", label: "Calendário", icon: Calendar },
   { path: "/importar", label: "Importar", icon: Upload },
-  { path: "/gmail", label: "Gmail", icon: Mail },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -87,7 +86,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <Icon className="w-4 h-4 shrink-0" />
               {label}
-              {label === "Gmail" && unreadCount > 0 && (
+              {label === "Notificações" && unreadCount > 0 && (
                 <Badge variant="destructive" className="ml-auto text-xs px-1.5 py-0.5 h-5">{unreadCount}</Badge>
               )}
             </Link>
