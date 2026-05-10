@@ -400,21 +400,20 @@ export function extractBoleto(text: string): BoletoData {
 // ─── PDF Parser ──────────────────────────────────────────────────────────────
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Use pdftotext (poppler-utils) via temp file — reliable and fast
-  const { execSync } = await import("child_process");
-  const { writeFileSync, unlinkSync, mkdtempSync } = await import("fs");
-  const { join } = await import("path");
-  const { tmpdir } = await import("os");
-  const dir = mkdtempSync(join(tmpdir(), "pdf-"));
-  const inFile = join(dir, "input.pdf");
-  try {
-    writeFileSync(inFile, buffer);
-    const result = execSync(`pdftotext "${inFile}" -`, { maxBuffer: 10 * 1024 * 1024 });
-    return result.toString("utf-8");
-  } finally {
-    try { unlinkSync(inFile); } catch {}
-    try { require("fs").rmdirSync(dir); } catch {}
+  // Use pdfjs-dist — pure JS, works in production without system dependencies
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs") as any;
+  const uint8 = new Uint8Array(buffer);
+  const doc = await pdfjsLib.getDocument({ data: uint8, useSystemFonts: true }).promise;
+  let fullText = "";
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pageText = content.items.map((item: any) => ("str" in item ? item.str : "")).join(" ");
+    fullText += pageText + "\n";
   }
+  return fullText;
 }
 
 export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
@@ -447,6 +446,42 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
   }
 
   const results: ParsedTransaction[] = [];
+
+  // ── Extrato bancário Banco 301 / Itau PJ detection ─────────────────────────
+  // Format: "DD/MM/YYYY  Categoria  Lançamento  Descrição  R$ X.XXX,XX  -"
+  // or:     "DD/MM/YYYY  Categoria  Lançamento  Descrição  -  R$ X.XXX,XX"
+  const isBankStatement = /Total de entradas|Total de saídas|Movimentações|Extrato gerado no dia/i.test(text);
+  if (isBankStatement) {
+    // Pattern: date + optional category + payment method + description + entrada/saida
+    // The PDF text comes as one long line per page with spaces between fields
+    // We look for: DD/MM/YYYY ... DESCRIPTION ... R$ VALUE ... - (or - ... R$ VALUE)
+    const bankLinePattern = /(\d{2}\/\d{2}\/\d{4})\s+(?:Pessoa Jurídica|Pessoa Física)?\s*(PIX|Pagamento|Transferência|Débito|Crédito|TED|DOC|Boleto)?\s+([A-Z][A-Z\s\.\-\/]+?)\s+(R\$\s*[\d.,]+|-)\s+(R\$\s*[\d.,]+|-)/gi;
+    let match;
+    while ((match = bankLinePattern.exec(text)) !== null) {
+      const [, dateStr, payMethod, description, entradaRaw, saidaRaw] = match;
+      const dueDate = parseDate(dateStr) || undefined;
+      const entradaVal = entradaRaw.trim() !== "-" ? parseAmount(entradaRaw.replace("R$", "").trim()) : null;
+      const saidaVal = saidaRaw.trim() !== "-" ? parseAmount(saidaRaw.replace("R$", "").trim()) : null;
+      const amount = entradaVal || saidaVal;
+      if (!amount || amount <= 0) continue;
+      const type: "income" | "expense" = entradaVal ? "income" : "expense";
+      const cleanDesc = description.trim().replace(/\s+/g, " ");
+      if (cleanDesc.length < 2) continue;
+      // Skip "Saldo do dia" lines
+      if (/saldo do dia/i.test(cleanDesc)) continue;
+      results.push({
+        description: cleanDesc.substring(0, 255),
+        amount,
+        type,
+        entityType: "PJ",
+        dueDate,
+        paymentMethod: payMethod ? detectPaymentMethod(payMethod) : "pix",
+        status: dueDate && dueDate < new Date() ? "paid" : "pending",
+        notes: `Extrato bancário importado`,
+      });
+    }
+    if (results.length > 0) return results;
+  }
 
   // Try to extract line-by-line transactions
   const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
