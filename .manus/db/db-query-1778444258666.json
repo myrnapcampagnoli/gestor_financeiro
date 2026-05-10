@@ -1,0 +1,40 @@
+{
+  "query": "-- 1. Deletar todos os lançamentos de Prolabore (não existem no Excel)\nDELETE FROM transactions \nWHERE description LIKE 'Prolabore%' AND source = 'import_excel';\n\n-- 2. Corrigir os valores do Salário da Aline (valores reais do Excel)\nUPDATE transactions SET amount = 2447.29 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-01-01';\n\nUPDATE transactions SET amount = 1201.57 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-02-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-03-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-04-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-05-01';\n\n-- 3. Verificar o resultado\nSELECT description, amount, dueDate, status \nFROM transactions \nWHERE description LIKE 'Salario%' AND source = 'import_excel'\nORDER BY dueDate;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute -- 1. Deletar todos os lançamentos de Prolabore (não existem no Excel)\nDELETE FROM transactions \nWHERE description LIKE 'Prolabore%' AND source = 'import_excel';\n\n-- 2. Corrigir os valores do Salário da Aline (valores reais do Excel)\nUPDATE transactions SET amount = 2447.29 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-01-01';\n\nUPDATE transactions SET amount = 1201.57 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-02-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-03-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-04-01';\n\nUPDATE transactions SET amount = 2718.81 \nWHERE description = 'Salario (Aline)' AND source = 'import_excel' AND dueDate = '2026-05-01';\n\n-- 3. Verificar o resultado\nSELECT description, amount, dueDate, status \nFROM transactions \nWHERE description LIKE 'Salario%' AND source = 'import_excel'\nORDER BY dueDate;",
+  "rows": [
+    {
+      "description": "Salario (Aline)",
+      "amount": "2447.29",
+      "dueDate": "2026-01-01 00:00:00",
+      "status": "paid"
+    },
+    {
+      "description": "Salario (Aline)",
+      "amount": "1201.57",
+      "dueDate": "2026-02-01 00:00:00",
+      "status": "paid"
+    },
+    {
+      "description": "Salario (Aline)",
+      "amount": "2718.81",
+      "dueDate": "2026-03-01 00:00:00",
+      "status": "paid"
+    },
+    {
+      "description": "Salario (Aline)",
+      "amount": "2718.81",
+      "dueDate": "2026-04-01 00:00:00",
+      "status": "paid"
+    },
+    {
+      "description": "Salario (Aline)",
+      "amount": "2718.81",
+      "dueDate": "2026-05-01 00:00:00",
+      "status": "overdue"
+    }
+  ],
+  "messages": [],
+  "stdout": "description\tamount\tdueDate\tstatus\nSalario (Aline)\t2447.29\t2026-01-01 00:00:00\tpaid\nSalario (Aline)\t1201.57\t2026-02-01 00:00:00\tpaid\nSalario (Aline)\t2718.81\t2026-03-01 00:00:00\tpaid\nSalario (Aline)\t2718.81\t2026-04-01 00:00:00\tpaid\nSalario (Aline)\t2718.81\t2026-05-01 00:00:00\toverdue\n",
+  "stderr": "",
+  "execution_time_ms": 396
+}

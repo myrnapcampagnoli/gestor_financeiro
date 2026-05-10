@@ -6,11 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Upload, FileText, FileSpreadsheet, File, CheckCircle2, AlertCircle,
-  Trash2, Edit2, ChevronDown, ChevronUp, ArrowLeft, Loader2, Info,
+  Trash2, Edit2, ChevronDown, ChevronUp, ArrowLeft, Loader2, Info, Copy, Check,
 } from "lucide-react";
 import { Link } from "wouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface BoletoData {
+  linhaDigitavel?: string;
+  codigoBarras?: string;
+  vencimento?: string;
+  valor?: number;
+  beneficiario?: string;
+  isBoleto: boolean;
+}
 
 interface ParsedTx {
   description: string;
@@ -21,6 +30,7 @@ interface ParsedTx {
   paymentMethod: "credit" | "debit" | "pix" | "cash" | "boleto" | "other";
   status: "paid" | "pending";
   notes?: string;
+  boleto?: BoletoData;
 }
 
 type ImportSource = "import_csv" | "import_excel" | "import_pdf";
@@ -172,6 +182,79 @@ function TxRow({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Boleto Card ──────────────────────────────────────────────────────────────
+function BoletoCard({ boleto }: { boleto: BoletoData }) {
+  const [copied, setCopied] = useState(false);
+  const copiable = boleto.linhaDigitavel || boleto.codigoBarras;
+
+  const handleCopy = () => {
+    if (!copiable) return;
+    navigator.clipboard.writeText(copiable).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/60">
+      <CardHeader className="pb-2 pt-3 px-4">
+        <CardTitle className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+          <File className="w-4 h-4" />
+          Boleto detectado
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        {boleto.beneficiario && (
+          <div>
+            <p className="text-xs text-muted-foreground">Beneficiário</p>
+            <p className="text-sm font-medium">{boleto.beneficiario}</p>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          {boleto.valor !== undefined && (
+            <div>
+              <p className="text-xs text-muted-foreground">Valor</p>
+              <p className="text-sm font-bold text-red-600">{formatMoney(boleto.valor)}</p>
+            </div>
+          )}
+          {boleto.vencimento && (
+            <div>
+              <p className="text-xs text-muted-foreground">Vencimento</p>
+              <p className="text-sm font-semibold">
+                {new Date(boleto.vencimento).toLocaleDateString("pt-BR")}
+              </p>
+            </div>
+          )}
+        </div>
+        {copiable && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">
+              {boleto.linhaDigitavel ? "Linha digitável" : "Código de barras"}
+            </p>
+            <div className="flex items-center gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2">
+              <code className="text-xs flex-1 break-all font-mono text-amber-900 leading-relaxed">
+                {copiable}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="shrink-0 p-1.5 rounded-md hover:bg-amber-100 transition-colors"
+                title="Copiar linha digitável"
+              >
+                {copied
+                  ? <Check className="w-4 h-4 text-green-600" />
+                  : <Copy className="w-4 h-4 text-amber-700" />}
+              </button>
+            </div>
+            {copied && (
+              <p className="text-xs text-green-600 mt-1">✓ Copiado para a área de transferência!</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -424,6 +507,11 @@ export default function Importar() {
               </Button>
             </div>
           </div>
+
+          {/* Boleto card - show if any transaction has boleto data */}
+          {transactions.some((t) => t.boleto?.isBoleto) && (
+            <BoletoCard boleto={transactions.find((t) => t.boleto?.isBoleto)!.boleto!} />
+          )}
 
           {/* Transaction list */}
           <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">

@@ -1,6 +1,16 @@
 import * as XLSX from "xlsx";
 import { parse as csvParse } from "csv-parse/sync";
 
+export interface BoletoData {
+  linhaDigitavel?: string;
+  codigoBarras?: string;
+  vencimento?: Date;
+  valor?: number;
+  beneficiario?: string;
+  pagador?: string;
+  isBoleto: boolean;
+}
+
 export interface ParsedTransaction {
   description: string;
   amount: number;
@@ -10,6 +20,7 @@ export interface ParsedTransaction {
   paymentMethod: "credit" | "debit" | "pix" | "cash" | "boleto" | "other";
   status: "paid" | "pending";
   notes?: string;
+  boleto?: BoletoData;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -273,6 +284,94 @@ export function parseExcel(buffer: Buffer): ParsedTransaction[] {
   return results;
 }
 
+// ─── Boleto Parser ──────────────────────────────────────────────────────────
+
+export function extractBoleto(text: string): BoletoData {
+  const result: BoletoData = { isBoleto: false };
+
+  // Linha digitável: padrão FEBRABAN - 5 grupos de dígitos separados por espaços ou pontos
+  // Formato: AAAAA.BBBBB CCCCC.CCCCCC DDDDD.DDDDDD E FFFFFFFFFFFFFFFFF
+  // ou sem pontos/espaços (47 ou 48 dígitos)
+  const linhaDigitavelPatterns = [
+    // Com pontos e espaços (formato visual padrão)
+    /(\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14,15})/,
+    // Compacto sem formatação (47-48 dígitos)
+    /(?<![\d])(\d{47,48})(?![\d])/,
+    // Linha digitável com pontos (sem espaços)
+    /(\d{5}\.\d{5}\d{5}\.\d{6}\d{5}\.\d{6}\d{1}\d{14,15})/,
+  ];
+
+  for (const pattern of linhaDigitavelPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      result.linhaDigitavel = match[1].replace(/\s+/g, ' ').trim();
+      result.isBoleto = true;
+      break;
+    }
+  }
+
+  // Código de barras: 44 dígitos consecutivos
+  if (!result.codigoBarras) {
+    const cbMatch = text.match(/(?<![\d])(\d{44})(?![\d])/);
+    if (cbMatch) {
+      result.codigoBarras = cbMatch[1];
+      result.isBoleto = true;
+    }
+  }
+
+  // Vencimento do boleto - padrões específicos de boleto
+  const vencPatterns = [
+    /vencimento[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
+    /data\s+de\s+vencimento[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
+    /vence\s+em[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
+    /vencto[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
+    /vencimento[:\s]+(\d{2}\.\d{2}\.\d{4})/i,
+  ];
+  for (const p of vencPatterns) {
+    const m = text.match(p);
+    if (m) {
+      const dateStr = m[1].replace(/\./g, '/');
+      const parsed = parseDate(dateStr);
+      if (parsed) { result.vencimento = parsed; break; }
+    }
+  }
+
+  // Valor do boleto
+  const valorPatterns = [
+    /valor\s+do\s+documento[:\s]+R?\$?\s*([\d.,]+)/i,
+    /valor\s+cobrado[:\s]+R?\$?\s*([\d.,]+)/i,
+    /valor[:\s]+R?\$?\s*([\d.,]+)/i,
+    /total[:\s]+R?\$?\s*([\d.,]+)/i,
+    /R\$\s*([\d.,]+)/,
+  ];
+  for (const p of valorPatterns) {
+    const m = text.match(p);
+    if (m) {
+      const val = parseAmount(m[1]);
+      if (val && val > 0) { result.valor = val; break; }
+    }
+  }
+
+  // Beneficiário (quem emite o boleto)
+  const benefPatterns = [
+    /benefici[áa]rio[:\s]+([^\n]+)/i,
+    /cedente[:\s]+([^\n]+)/i,
+    /empresa[:\s]+([^\n]+)/i,
+    /raz[ãa]o\s+social[:\s]+([^\n]+)/i,
+  ];
+  for (const p of benefPatterns) {
+    const m = text.match(p);
+    if (m) { result.beneficiario = m[1].trim().substring(0, 100); break; }
+  }
+
+  // Se tem linha digitável ou código de barras, é boleto
+  if (result.linhaDigitavel || result.codigoBarras) {
+    result.isBoleto = true;
+  }
+
+  return result;
+}
+
 // ─── PDF Parser ──────────────────────────────────────────────────────────────
 
 export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
@@ -284,6 +383,32 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
   await parser.load(buffer);
   const data = { text: await parser.getText() };
   const text = data.text;
+
+  // ── Boleto detection first ────────────────────────────────────────────────
+  const boletoData = extractBoleto(text);
+  if (boletoData.isBoleto && (boletoData.linhaDigitavel || boletoData.codigoBarras)) {
+    // It's a boleto — return a single transaction with boleto data
+    const description = boletoData.beneficiario
+      ? `Boleto — ${boletoData.beneficiario}`
+      : "Boleto importado";
+    return [
+      {
+        description: description.substring(0, 255),
+        amount: boletoData.valor || 0,
+        type: "expense",
+        entityType: detectEntityType(text.substring(0, 500)),
+        dueDate: boletoData.vencimento,
+        paymentMethod: "boleto",
+        status: "pending",
+        notes: boletoData.linhaDigitavel
+          ? `Linha digitável: ${boletoData.linhaDigitavel}`
+          : boletoData.codigoBarras
+          ? `Código de barras: ${boletoData.codigoBarras}`
+          : undefined,
+        boleto: boletoData,
+      },
+    ];
+  }
 
   const results: ParsedTransaction[] = [];
 

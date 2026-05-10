@@ -77,3 +77,8 @@
 - [ ] Script de importação para o banco de dados via API
 - [ ] Verificar dados importados no dashboard
 - [ ] Busca automática no Gmail (configurar e testar)
+
+## Extração de Boletos PDF
+- [x] Parser de boleto: extrair vencimento, valor e linha digitável/código de barras
+- [x] UI: exibir linha digitável com botão de cópia rápida
+- [ ] Remover integração Gmail da navegação (não funciona sem Google Cloud)

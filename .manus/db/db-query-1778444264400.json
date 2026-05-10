@@ -1,0 +1,15 @@
+{
+  "query": "-- Ver total de transações por origem\nSELECT source, COUNT(*) as total, \n  SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as total_despesas\nFROM transactions \nGROUP BY source;\n\n-- Ver transações que NÃO vieram do import_excel (foram importadas pela usuária via upload)\nSELECT id, description, amount, dueDate, status, source, createdAt\nFROM transactions \nWHERE source != 'import_excel' OR source IS NULL\nORDER BY createdAt DESC\nLIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute -- Ver total de transações por origem\nSELECT source, COUNT(*) as total, \n  SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as total_despesas\nFROM transactions \nGROUP BY source;\n\n-- Ver transações que NÃO vieram do import_excel (foram importadas pela usuária via upload)\nSELECT id, description, amount, dueDate, status, source, createdAt\nFROM transactions \nWHERE source != 'import_excel' OR source IS NULL\nORDER BY createdAt DESC\nLIMIT 30;",
+  "rows": [
+    {
+      "source": "import_excel",
+      "total": "470",
+      "total_despesas": "696172.80"
+    }
+  ],
+  "messages": [],
+  "stdout": "source\ttotal\ttotal_despesas\nimport_excel\t470\t696172.80\n",
+  "stderr": "",
+  "execution_time_ms": 272
+}

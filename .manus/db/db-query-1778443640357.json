@@ -1,0 +1,48 @@
+{
+  "query": "SELECT \n  MONTH(dueDate) as mes,\n  COUNT(*) as total,\n  SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as entradas,\n  SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as saidas,\n  status\nFROM transactions \nWHERE source = 'import_excel'\nGROUP BY MONTH(dueDate), status\nORDER BY mes, status;\n\nSELECT COUNT(*) as total_importado FROM transactions WHERE source = 'import_excel';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute SELECT \n  MONTH(dueDate) as mes,\n  COUNT(*) as total,\n  SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as entradas,\n  SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as saidas,\n  status\nFROM transactions \nWHERE source = 'import_excel'\nGROUP BY MONTH(dueDate), status\nORDER BY mes, status;\n\nSELECT COUNT(*) as total_importado FROM transactions WHERE source = 'import_excel';",
+  "rows": [
+    {
+      "mes": "1",
+      "total": "22",
+      "entradas": "122.53",
+      "saidas": "20965.98",
+      "status": "paid"
+    },
+    {
+      "mes": "2",
+      "total": "36",
+      "entradas": "0.00",
+      "saidas": "97018.71",
+      "status": "paid"
+    },
+    {
+      "mes": "3",
+      "total": "43",
+      "entradas": "875.00",
+      "saidas": "66525.07",
+      "status": "paid"
+    },
+    {
+      "mes": "4",
+      "total": "38",
+      "entradas": "0.00",
+      "saidas": "50989.49",
+      "status": "paid"
+    },
+    {
+      "mes": "5",
+      "total": "21",
+      "entradas": "0.00",
+      "saidas": "33668.50",
+      "status": "pending"
+    }
+  ],
+  "messages": [
+    "total_importado",
+    "160"
+  ],
+  "stdout": "mes\ttotal\tentradas\tsaidas\tstatus\n1\t22\t122.53\t20965.98\tpaid\n2\t36\t0.00\t97018.71\tpaid\n3\t43\t875.00\t66525.07\tpaid\n4\t38\t0.00\t50989.49\tpaid\n5\t21\t0.00\t33668.50\tpending\ntotal_importado\n160\n",
+  "stderr": "",
+  "execution_time_ms": 268
+}
