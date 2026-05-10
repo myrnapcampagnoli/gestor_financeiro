@@ -256,7 +256,24 @@ export function parseExcel(buffer: Buffer): ParsedTransaction[] {
       const dueDate = parseDate(rawDate) || undefined;
 
       const rawType = get(["tipo", "type", "natureza", "categoria"]);
-      const type = detectType(rawType || rawAmount, amount);
+      // Detect income/expense:
+      // 1. If raw value is negative number → expense
+      // 2. If "Detalhe" column says "Recebido" → income, "Enviado" → expense
+      // 3. Otherwise fall back to detectType
+      const rawDetalhe = get(["detalhe", "detail", "descrição", "descricao"]);
+      const rawValorNum = typeof rawAmount === "number" ? rawAmount : parseFloat(String(rawAmount || "").replace(/[R$\s]/g, "").replace(",", "."));
+      let type: "income" | "expense";
+      if (!isNaN(rawValorNum) && rawValorNum < 0) {
+        type = "expense";
+      } else if (rawDetalhe && String(rawDetalhe).toLowerCase().includes("recebido")) {
+        type = "income";
+      } else if (rawDetalhe && String(rawDetalhe).toLowerCase().includes("enviado")) {
+        type = "expense";
+      } else if (rawDetalhe && (String(rawDetalhe).toLowerCase().includes("depósito") || String(rawDetalhe).toLowerCase().includes("deposito"))) {
+        type = "income";
+      } else {
+        type = detectType(rawType || rawAmount, amount);
+      }
 
       const allText = Object.values(row).map(String).join(" ");
       const entityType = detectEntityType(allText);
