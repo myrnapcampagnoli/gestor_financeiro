@@ -310,12 +310,16 @@ export function extractBoleto(text: string): BoletoData {
   // Formato: AAAAA.BBBBB CCCCC.CCCCCC DDDDD.DDDDDD E FFFFFFFFFFFFFFFFF
   // ou sem pontos/espaços (47 ou 48 dígitos)
   const linhaDigitavelPatterns = [
-    // Com pontos e espaços (formato visual padrão)
+    // Com pontos e espaços (formato visual padrão bancas)
     /(\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14,15})/,
+    // Concessionárias: 4 grupos de 12 dígitos separados por espaços (ex: Ultragaz, Sanepar, Copel)
+    /(\d{11,12}\s+\d{11,12}\s+\d{11,12}\s+\d{11,12})/,
     // Compacto sem formatação (47-48 dígitos)
     /(?<![\d])(\d{47,48})(?![\d])/,
     // Linha digitável com pontos (sem espaços)
     /(\d{5}\.\d{5}\d{5}\.\d{6}\d{5}\.\d{6}\d{1}\d{14,15})/,
+    // 3 grupos de 10 dígitos (formato alternativo)
+    /(\d{10}\s+\d{10}\s+\d{10})/,
   ];
 
   for (const pattern of linhaDigitavelPatterns) {
@@ -343,6 +347,10 @@ export function extractBoleto(text: string): BoletoData {
     /vence\s+em[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
     /vencto[:\s]+([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
     /vencimento[:\s]+(\d{2}\.\d{2}\.\d{4})/i,
+    // Padrão Ultragaz/concessionárias: "Vencimento" em linha, data na próxima linha
+    /Vencimento\s*\n\s*([\d]{2}[\/\-][\d]{2}[\/\-][\d]{2,4})/i,
+    // Padrão com múltiplas linhas entre Vencimento e a data (como Ultragaz que tem outras infos no meio)
+    /Vencimento[\s\S]{0,100}?([\d]{2}\/[\d]{2}\/[\d]{4})/i,
   ];
   for (const p of vencPatterns) {
     const m = text.match(p);
@@ -391,15 +399,26 @@ export function extractBoleto(text: string): BoletoData {
 
 // ─── PDF Parser ──────────────────────────────────────────────────────────────
 
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  // Use pdftotext (poppler-utils) via temp file — reliable and fast
+  const { execSync } = await import("child_process");
+  const { writeFileSync, unlinkSync, mkdtempSync } = await import("fs");
+  const { join } = await import("path");
+  const { tmpdir } = await import("os");
+  const dir = mkdtempSync(join(tmpdir(), "pdf-"));
+  const inFile = join(dir, "input.pdf");
+  try {
+    writeFileSync(inFile, buffer);
+    const result = execSync(`pdftotext "${inFile}" -`, { maxBuffer: 10 * 1024 * 1024 });
+    return result.toString("utf-8");
+  } finally {
+    try { unlinkSync(inFile); } catch {}
+    try { require("fs").rmdirSync(dir); } catch {}
+  }
+}
+
 export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
-  // pdf-parse v2 uses a class-based API (PDFParse), not a default function
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfModule = await import("pdf-parse") as any;
-  const PDFParseClass = pdfModule.PDFParse;
-  const parser = new PDFParseClass({});
-  await parser.load(buffer);
-  const data = { text: await parser.getText() };
-  const text = data.text;
+  const text = await extractPdfText(buffer);
 
   // ── Boleto detection first ────────────────────────────────────────────────
   const boletoData = extractBoleto(text);

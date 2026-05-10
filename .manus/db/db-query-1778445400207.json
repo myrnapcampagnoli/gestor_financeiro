@@ -1,0 +1,28 @@
+{
+  "query": "\nSELECT \n  description,\n  type,\n  COUNT(*) as qtd,\n  SUM(amount) as total\nFROM transactions \nWHERE source = 'import_excel'\n  AND description IN ('Recebido', 'Enviado', 'Depósito InfinitePay')\nGROUP BY description, type\nORDER BY description;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute \nSELECT \n  description,\n  type,\n  COUNT(*) as qtd,\n  SUM(amount) as total\nFROM transactions \nWHERE source = 'import_excel'\n  AND description IN ('Recebido', 'Enviado', 'Depósito InfinitePay')\nGROUP BY description, type\nORDER BY description;\n",
+  "rows": [
+    {
+      "description": "Depósito InfinitePay",
+      "type": "expense",
+      "qtd": "73",
+      "total": "87029.88"
+    },
+    {
+      "description": "Enviado",
+      "type": "expense",
+      "qtd": "35",
+      "total": "225052.03"
+    },
+    {
+      "description": "Recebido",
+      "type": "expense",
+      "qtd": "204",
+      "total": "140570.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "description\ttype\tqtd\ttotal\nDepósito InfinitePay\texpense\t73\t87029.88\nEnviado\texpense\t35\t225052.03\nRecebido\texpense\t204\t140570.00\n",
+  "stderr": "",
+  "execution_time_ms": 295
+}
