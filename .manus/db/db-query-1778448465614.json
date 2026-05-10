@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total, SUM(CAST(amount AS DECIMAL(15,2))) as total_valor FROM transactions WHERE description LIKE '%Enviado%' OR description LIKE '%enviado%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute SELECT COUNT(*) as total, SUM(CAST(amount AS DECIMAL(15,2))) as total_valor FROM transactions WHERE description LIKE '%Enviado%' OR description LIKE '%enviado%';",
+  "rows": [
+    {
+      "total": "17",
+      "total_valor": "88761.03"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\ttotal_valor\n17\t88761.03\n",
+  "stderr": "",
+  "execution_time_ms": 262
+}
