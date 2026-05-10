@@ -96,6 +96,74 @@ async function startServer() {
     }
   });
 
+  // Backup semanal agendado — chamado pelo Manus Heartbeat toda segunda-feira
+  app.post("/api/scheduled/backup-semanal", async (req, res) => {
+    try {
+      // Verifica se a chamada vem do cron do Manus (header injetado pela plataforma)
+      const taskUid = req.headers["x-manus-cron-task-uid"] as string | undefined;
+      if (!taskUid) {
+        return res.status(403).json({ error: "cron-only endpoint" });
+      }
+
+      const { getTransactions } = await import("../db");
+      const { getDb } = await import("../db");
+      const { users } = await import("../../drizzle/schema");
+      const { notifyOwner } = await import("./notification");
+      const db = await getDb();
+      if (!db) return res.status(500).json({ error: "DB unavailable" });
+
+      // Busca o owner (admin) para gerar o resumo
+      const ownerRows = await db.select().from(users).limit(1);
+      const owner = ownerRows[0];
+      if (!owner) return res.json({ ok: true, skipped: "no owner" });
+
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const txs = await getTransactions(owner.id, { from: firstOfMonth, to: now });
+
+      const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount as string), 0);
+      const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount as string), 0);
+      const pending = txs.filter(t => t.status === 'pending').length;
+      const overdue = txs.filter(t => t.status === 'overdue').length;
+      const balance = income - expense;
+      const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const mes = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+      // Gera CSV completo do mês
+      const headers = ['Data','Descrição','Valor','Tipo','PJ/PF','Status','Pagamento','Vencimento'];
+      const rows = txs.map(t => [
+        t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : new Date(t.createdAt).toLocaleDateString('pt-BR'),
+        t.description,
+        parseFloat(t.amount as string).toFixed(2),
+        t.type === 'income' ? 'Entrada' : t.type === 'expense' ? 'Saída' : 'Transferência',
+        t.entityType, t.status, t.paymentMethod || '',
+        t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : '',
+      ]);
+      const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+      const notifContent = [
+        `📅 Período: ${mes} (até hoje)`,
+        ``,
+        `💰 Entradas: ${fmt(income)}`,
+        `💸 Saídas:   ${fmt(expense)}`,
+        `📊 Saldo:    ${fmt(balance)}`,
+        ``,
+        `⏳ Pendentes: ${pending} transações`,
+        `🔴 Atrasados: ${overdue} transações`,
+        `📝 Total no mês: ${txs.length} lançamentos`,
+        ``,
+        `Para baixar o CSV completo, acesse Configurações → Exportar Dados no sistema.`,
+      ].join('\n');
+
+      await notifyOwner({ title: `📊 Backup Semanal — ${mes}`, content: notifContent });
+
+      res.json({ ok: true, month: mes, transactions: txs.length, income, expense, balance });
+    } catch (e: any) {
+      console.error("[Backup Semanal] Error:", e);
+      res.status(500).json({ error: e?.message || "unknown", timestamp: new Date().toISOString() });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

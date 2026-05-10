@@ -98,3 +98,10 @@
 - [ ] UI: badge "Transferência?" na tela de importação com botão para classificar
 - [ ] Botão "Marcar como Transferência" em lote na tela de importação
 - [ ] Dashboard: tipo 'transfer' não entra no cálculo de receita/despesa
+
+## Backup de Dados
+- [ ] Opção 1: Botão "Exportar tudo" em Configurações → baixa CSV com todas as transações
+- [ ] Opção 1: Incluir filtro por período (mês/ano/tudo) na exportação
+- [ ] Opção 2: Backup automático semanal por e-mail (SMTP) com CSV anexado
+- [ ] Opção 2: Configuração de e-mail de destino em Configurações
+- [ ] Opção 2: Agendamento via periodic-updates (toda segunda-feira às 8h)

@@ -315,11 +315,49 @@ export const appRouter = router({
   }),
 
   export: router({
-    csv: protectedProcedure.query(async ({ ctx }) => {
-      const txs = await getTransactions(ctx.user.id);
-      const headers = ['Data','Descrição','Valor','Tipo','PJ/PF','Status','Pagamento','Vencimento'];
-      const rows = txs.map(t => [new Date(t.createdAt).toLocaleDateString('pt-BR'), t.description, parseFloat(t.amount as string).toFixed(2), t.type==='income'?'Entrada':t.type==='expense'?'Saída':'Transferência', t.entityType, t.status, t.paymentMethod||'', t.dueDate?new Date(t.dueDate).toLocaleDateString('pt-BR'):'']);
-      return { csv: [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n') };
+    csv: protectedProcedure
+      .input(z.object({
+        from: z.string().optional(), // ISO date string YYYY-MM-DD
+        to: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const filters: Parameters<typeof getTransactions>[1] = {};
+        if (input?.from) filters.from = new Date(input.from);
+        if (input?.to) { const d = new Date(input.to); d.setHours(23,59,59,999); filters.to = d; }
+        const txs = await getTransactions(ctx.user.id, filters);
+        const headers = ['Data','Descrição','Valor','Tipo','PJ/PF','Status','Pagamento','Vencimento','Categoria'];
+        const rows = txs.map(t => [
+          t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : new Date(t.createdAt).toLocaleDateString('pt-BR'),
+          t.description,
+          parseFloat(t.amount as string).toFixed(2),
+          t.type==='income'?'Entrada':t.type==='expense'?'Saída':'Transferência',
+          t.entityType,
+          t.status,
+          t.paymentMethod||'',
+          t.dueDate?new Date(t.dueDate).toLocaleDateString('pt-BR'):'',
+          t.categoryId?.toString()||'',
+        ]);
+        const periodo = input?.from && input?.to
+          ? `${input.from}_a_${input.to}`
+          : input?.from ? `a_partir_de_${input.from}`
+          : 'completo';
+        return {
+          csv: [headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'),
+          filename: `financeiro_${periodo}.csv`,
+          total: txs.length,
+        };
+      }),
+
+    // Resumo para backup/notificação
+    summary: protectedProcedure.query(async ({ ctx }) => {
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const txs = await getTransactions(ctx.user.id, { from: firstOfMonth, to: now });
+      const income = txs.filter(t=>t.type==='income').reduce((s,t)=>s+parseFloat(t.amount as string),0);
+      const expense = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount as string),0);
+      const pending = txs.filter(t=>t.status==='pending').length;
+      const overdue = txs.filter(t=>t.status==='overdue').length;
+      return { income, expense, balance: income-expense, pending, overdue, month: now.toLocaleString('pt-BR',{month:'long',year:'numeric'}) };
     }),
   }),
 });
