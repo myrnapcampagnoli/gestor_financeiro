@@ -350,6 +350,33 @@ export const appRouter = router({
         };
       }),
 
+    // Envia e-mail de backup manualmente (para teste ou disparo manual)
+    sendBackupEmail: protectedProcedure.mutation(async ({ ctx }) => {
+      const { sendBackupEmail } = await import('./emailBackup');
+      const now = new Date();
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const txs = await getTransactions(ctx.user.id, { from: firstOfMonth, to: now });
+      const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount as string), 0);
+      const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount as string), 0);
+      const pending = txs.filter(t => t.status === 'pending').length;
+      const overdue = txs.filter(t => t.status === 'overdue').length;
+      const balance = income - expense;
+      const mes = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+      const headers = ['Data','Descrição','Valor','Tipo','PJ/PF','Status','Pagamento','Vencimento'];
+      const rows = txs.map(t => [
+        t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : new Date(t.createdAt).toLocaleDateString('pt-BR'),
+        t.description,
+        parseFloat(t.amount as string).toFixed(2),
+        t.type === 'income' ? 'Entrada' : t.type === 'expense' ? 'Saída' : 'Transferência',
+        t.entityType, t.status, t.paymentMethod || '',
+        t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : '',
+      ]);
+      const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const ownerEmail = (ctx.user as any).email || 'myrnapcampagnoli@gmail.com';
+      const sent = await sendBackupEmail({ toEmail: ownerEmail, mes, income, expense, balance, pending, overdue, totalTx: txs.length, csvContent });
+      return { sent, email: ownerEmail, transactions: txs.length, income, expense, balance };
+    }),
+
     // Resumo para backup/notificação
     summary: protectedProcedure.query(async ({ ctx }) => {
       const now = new Date();

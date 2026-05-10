@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Deletar VIVO FIXO (são saldos acumulados, não transações reais)\nDELETE FROM transactions WHERE id IN (90125, 90126) AND userId = 1;\n\n-- Deletar duplicatas do Excel (manter os registros dos bancos que são mais precisos)\n-- Bradesco R$6.153 - manter 90124 (Bradesco), deletar 60020 (Excel)\nDELETE FROM transactions WHERE id = 60020 AND userId = 1;\n\n-- Santander R$5.128 - manter 90182 (Santander), deletar 60058 (Excel)\nDELETE FROM transactions WHERE id = 60058 AND userId = 1;\n\n-- Nubank R$2.491 - manter 90090 (Nubank), deletar 60094 (Excel)\nDELETE FROM transactions WHERE id = 60094 AND userId = 1;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 45gnASMs1QgMa2g.cf03bb693793 --database Cs7aAyYTET4YvNHfMfGoCu --execute \n-- Deletar VIVO FIXO (são saldos acumulados, não transações reais)\nDELETE FROM transactions WHERE id IN (90125, 90126) AND userId = 1;\n\n-- Deletar duplicatas do Excel (manter os registros dos bancos que são mais precisos)\n-- Bradesco R$6.153 - manter 90124 (Bradesco), deletar 60020 (Excel)\nDELETE FROM transactions WHERE id = 60020 AND userId = 1;\n\n-- Santander R$5.128 - manter 90182 (Santander), deletar 60058 (Excel)\nDELETE FROM transactions WHERE id = 60058 AND userId = 1;\n\n-- Nubank R$2.491 - manter 90090 (Nubank), deletar 60094 (Excel)\nDELETE FROM transactions WHERE id = 60094 AND userId = 1;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 301
+}

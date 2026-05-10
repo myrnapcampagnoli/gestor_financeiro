@@ -123,3 +123,23 @@
 - [x] Ícone PJ (azul) / PF (âmbar) por linha
 - [x] Transferencias internas identificadas e excluídas do saldo
 - [x] Legenda de cores e status na tela
+
+## Edição Rápida de Status no Extrato
+- [x] Clique no status dot (bolinha colorida) abre dropdown de troca de status
+- [x] Opções: Pago ✅, Pendente ⏳, Atrasado 🔴, Agendado 📅
+- [x] Mutation trpc.transactions.update para alterar status
+- [x] Feedback visual imediato (invalidação da lista)
+- [x] Botão "✓ Pagar" visível ao hover para pendentes/atrasados
+
+## Correções de Dados (mai/2026)
+- [x] VIVO FIXO R$29.621 removido (era saldo acumulado lido como receita)
+- [x] PIX MYRNA duplicado removido (expense + transfer do mesmo lançamento)
+- [x] Outros Vida R$20k e R$12,5k corrigidos para transfer (PJ→PF)
+- [x] Duplicatas março: 8 removidas (Excel vs Santander/Nubank)
+- [x] Duplicatas abril: 5 removidas (Excel vs Santander/Bradesco/Nubank)
+
+## Importação Santander PF e Bradesco PF
+- [x] Parser Santander PF (Extrato Consolidado Inteligente) jan-abr/2026
+- [x] Parser Bradesco PF (extrato_conta.pdf) mai/2026
+- [x] 57 transações novas importadas (3 duplicatas puladas)
+- [x] Total: 754 transações no banco (após limpeza de duplicatas)

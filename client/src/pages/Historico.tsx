@@ -4,9 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Download, Search,
   ChevronLeft, ChevronRight, Building2, User, TrendingUp, TrendingDown,
-  Wallet, AlertCircle, Scale,
+  Wallet, AlertCircle, Scale, CheckCircle2, Clock, XCircle, CalendarClock,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -121,7 +124,15 @@ function statusDot(status: string) {
 
 // ─── Row Component ────────────────────────────────────────────────────────────
 
-function ExtratoRow({ tx, runningBalance }: { tx: Tx; runningBalance: number }) {
+// Status options for quick edit
+const STATUS_OPTIONS = [
+  { value: "paid",      label: "Pago",       icon: CheckCircle2, color: "text-green-600" },
+  { value: "pending",   label: "Pendente",   icon: Clock,        color: "text-yellow-600" },
+  { value: "overdue",   label: "Atrasado",   icon: XCircle,      color: "text-red-600" },
+  { value: "scheduled", label: "Agendado",   icon: CalendarClock, color: "text-blue-500" },
+] as const;
+
+function ExtratoRow({ tx, runningBalance, onStatusChange }: { tx: Tx; runningBalance: number; onStatusChange?: (id: number, status: string) => void }) {
   const value = amt(tx);
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
@@ -129,6 +140,7 @@ function ExtratoRow({ tx, runningBalance }: { tx: Tx; runningBalance: number }) 
   const banco = detectBanco(tx);
   const { label, color } = detectLabel(tx);
   const isPJ = tx.entityType === "PJ";
+  const isPendingOrOverdue = tx.status === "pending" || tx.status === "overdue";
 
   return (
     <div className={`flex items-center gap-2 px-3 py-2.5 border-b border-border/50 hover:bg-muted/30 transition-colors text-sm group ${isLegal ? "opacity-60" : ""}`}>
@@ -156,7 +168,37 @@ function ExtratoRow({ tx, runningBalance }: { tx: Tx; runningBalance: number }) 
       {/* Description + bank */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          {statusDot(tx.status)}
+          {/* Clickable status dot — opens dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="shrink-0 rounded-full hover:ring-2 hover:ring-offset-1 hover:ring-primary/30 transition-all focus:outline-none"
+                title="Alterar status"
+                onClick={e => e.stopPropagation()}
+              >
+                {statusDot(tx.status)}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              <div className="px-2 py-1 text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Alterar status</div>
+              <DropdownMenuSeparator />
+              {STATUS_OPTIONS.map(opt => {
+                const Icon = opt.icon;
+                const isCurrent = tx.status === opt.value;
+                return (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    className={`gap-2 cursor-pointer ${isCurrent ? "font-semibold bg-muted/60" : ""}`}
+                    onClick={() => onStatusChange?.(tx.id, opt.value)}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${opt.color}`} />
+                    <span className={opt.color}>{opt.label}</span>
+                    {isCurrent && <span className="ml-auto text-[10px] text-muted-foreground">atual</span>}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <span className="truncate font-medium text-[13px]">{tx.description}</span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -172,8 +214,19 @@ function ExtratoRow({ tx, runningBalance }: { tx: Tx; runningBalance: number }) 
         </div>
       </div>
 
-      {/* Amount */}
+      {/* Amount + quick pay button */}
       <div className="text-right shrink-0 min-w-[80px]">
+        {/* Quick pay button — visible on hover for pending/overdue */}
+        {isPendingOrOverdue && onStatusChange && (
+          <button
+            className="hidden group-hover:flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 mb-1 ml-auto hover:bg-green-100 transition-colors"
+            onClick={() => onStatusChange(tx.id, "paid")}
+            title="Marcar como pago"
+          >
+            <CheckCircle2 className="w-3 h-3" />
+            Pagar
+          </button>
+        )}
         <div className={`font-semibold tabular-nums text-[13px] ${
           isTransfer ? "text-blue-600" :
           isIncome ? "text-green-600" :
@@ -195,7 +248,7 @@ function ExtratoRow({ tx, runningBalance }: { tx: Tx; runningBalance: number }) 
 
 // ─── Month Section ────────────────────────────────────────────────────────────
 
-function MonthSection({ month, txs, startBalance }: { month: string; txs: Tx[]; startBalance: number }) {
+function MonthSection({ month, txs, startBalance, onStatusChange }: { month: string; txs: Tx[]; startBalance: number; onStatusChange?: (id: number, status: string) => void }) {
   const entradas = txs.filter(t => t.type === "income" && t.status !== "legal").reduce((s, t) => s + amt(t), 0);
   const saidas = txs.filter(t => t.type === "expense" && t.status !== "legal").reduce((s, t) => s + amt(t), 0);
   const saldoMes = entradas - saidas;
@@ -241,7 +294,7 @@ function MonthSection({ month, txs, startBalance }: { month: string; txs: Tx[]; 
       {/* Transactions */}
       <div>
         {rows.map(({ tx, balance }) => (
-          <ExtratoRow key={tx.id} tx={tx} runningBalance={balance} />
+          <ExtratoRow key={tx.id} tx={tx} runningBalance={balance} onStatusChange={onStatusChange} />
         ))}
       </div>
 
@@ -342,6 +395,17 @@ export default function Historico() {
   const totalTransfer = filtered.filter(t => t.type === "transfer").reduce((s, t) => s + amt(t as Tx), 0);
   const saldo = totalIncome - totalExpense;
 
+  const utils = trpc.useUtils();
+  const updateTx = trpc.transactions.update.useMutation({
+    onSuccess: () => {
+      utils.transactions.list.invalidate();
+      toast.success("Status atualizado!");
+    },
+    onError: () => toast.error("Erro ao atualizar status"),
+  });
+  const handleStatusChange = (id: number, status: string) => {
+    updateTx.mutate({ id, status: status as "paid" | "pending" | "overdue" | "legal" | "scheduled" });
+  };
   const handleExport = () => {
     if (!csvData?.csv) return;
     const blob = new Blob([csvData.csv], { type: "text/csv;charset=utf-8;" });
@@ -502,6 +566,7 @@ export default function Historico() {
               month={monthKey}
               txs={txs}
               startBalance={monthStartBalances[monthKey] ?? 0}
+              onStatusChange={handleStatusChange}
             />
           ))}
 
