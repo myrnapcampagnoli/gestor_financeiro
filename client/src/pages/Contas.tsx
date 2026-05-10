@@ -79,11 +79,9 @@ export default function Contas() {
             {totalLegal > 0 && <span className="ml-2 text-gray-500">(Jurídico: {formatMoney(totalLegal)})</span>}
           </p>
         </div>
-        <Link href="/nova-transacao">
-          <a className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
-            <Plus className="w-4 h-4" />
-            Novo
-          </a>
+        <Link href="/nova-transacao" className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors">
+          <Plus className="w-4 h-4" />
+          Novo
         </Link>
       </div>
 
@@ -146,10 +144,8 @@ export default function Contas() {
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Nenhuma conta encontrada</p>
-            <Link href="/nova-transacao">
-              <a className="mt-3 inline-flex items-center gap-2 text-blue-600 text-sm font-medium">
-                <Plus className="w-4 h-4" /> Adicionar conta
-              </a>
+            <Link href="/nova-transacao" className="mt-3 inline-flex items-center gap-2 text-blue-600 text-sm font-medium">
+              <Plus className="w-4 h-4" /> Adicionar conta
             </Link>
           </CardContent>
         </Card>
