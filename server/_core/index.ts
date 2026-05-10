@@ -109,6 +109,7 @@ async function startServer() {
       const { getDb } = await import("../db");
       const { users } = await import("../../drizzle/schema");
       const { notifyOwner } = await import("./notification");
+      const { sendBackupEmail } = await import("../emailBackup");
       const db = await getDb();
       if (!db) return res.status(500).json({ error: "DB unavailable" });
 
@@ -126,10 +127,9 @@ async function startServer() {
       const pending = txs.filter(t => t.status === 'pending').length;
       const overdue = txs.filter(t => t.status === 'overdue').length;
       const balance = income - expense;
-      const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       const mes = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
-      // Gera CSV completo do mês
+      // Gera CSV completo do mês com BOM UTF-8 para abrir corretamente no Excel
       const headers = ['Data','Descrição','Valor','Tipo','PJ/PF','Status','Pagamento','Vencimento'];
       const rows = txs.map(t => [
         t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : new Date(t.createdAt).toLocaleDateString('pt-BR'),
@@ -141,23 +141,30 @@ async function startServer() {
       ]);
       const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
 
-      const notifContent = [
-        `📅 Período: ${mes} (até hoje)`,
-        ``,
-        `💰 Entradas: ${fmt(income)}`,
-        `💸 Saídas:   ${fmt(expense)}`,
-        `📊 Saldo:    ${fmt(balance)}`,
-        ``,
-        `⏳ Pendentes: ${pending} transações`,
-        `🔴 Atrasados: ${overdue} transações`,
-        `📝 Total no mês: ${txs.length} lançamentos`,
-        ``,
-        `Para baixar o CSV completo, acesse Configurações → Exportar Dados no sistema.`,
-      ].join('\n');
+      // Envia e-mail real com CSV em anexo via Resend
+      const ownerEmail = owner.email || process.env.OWNER_EMAIL || 'myrnapcampagnoli@gmail.com';
+      const emailSent = await sendBackupEmail({
+        toEmail: ownerEmail,
+        mes,
+        income,
+        expense,
+        balance,
+        pending,
+        overdue,
+        totalTx: txs.length,
+        csvContent,
+      });
 
-      await notifyOwner({ title: `📊 Backup Semanal — ${mes}`, content: notifContent });
+      // Também envia notificação in-app como confirmação
+      const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      await notifyOwner({
+        title: `📊 Backup Semanal — ${mes}`,
+        content: emailSent
+          ? `✅ Backup enviado para ${ownerEmail}\n\nEntradas: ${fmt(income)} | Saídas: ${fmt(expense)} | Saldo: ${fmt(balance)}\nPendentes: ${pending} | Atrasados: ${overdue} | Total: ${txs.length} lançamentos`
+          : `⚠️ Falha ao enviar e-mail. Acesse Configurações → Exportar Dados para baixar o CSV manualmente.`,
+      });
 
-      res.json({ ok: true, month: mes, transactions: txs.length, income, expense, balance });
+      res.json({ ok: true, emailSent, month: mes, transactions: txs.length, income, expense, balance });
     } catch (e: any) {
       console.error("[Backup Semanal] Error:", e);
       res.status(500).json({ error: e?.message || "unknown", timestamp: new Date().toISOString() });
