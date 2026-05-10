@@ -282,6 +282,7 @@ export const appRouter = router({
         notes: z.string().optional(),
         categoryId: z.number().optional(),
         replaceId: z.number().optional(), // if set, delete existing and replace
+        accountSource: z.string().optional(), // e.g. "Nubank PF", "Banco 301 PJ"
       })),
       source: z.enum(['import_csv','import_excel','import_pdf']).optional(),
     })).mutation(async ({ ctx, input }) => {
@@ -302,6 +303,7 @@ export const appRouter = router({
           notes: tx.notes,
           categoryId: tx.categoryId,
           source: input.source || 'import_csv',
+          importedFrom: tx.accountSource || undefined,
         });
         imported++;
       }

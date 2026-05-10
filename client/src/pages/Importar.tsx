@@ -51,6 +51,7 @@ interface ParsedTx {
   notes?: string;
   boleto?: BoletoData;
   isTransferCandidate?: boolean;
+  accountSource?: string; // e.g. "Nubank PF", "Banco 301 PJ"
 }
 
 type ImportSource = "import_csv" | "import_excel" | "import_pdf";
@@ -108,6 +109,11 @@ function TxRow({
         {tx.isTransferCandidate && (
           <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-1.5 py-0 shrink-0 font-medium">
             ⇄ Transfer
+          </span>
+        )}
+        {tx.accountSource && (
+          <span className="text-[10px] bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-1.5 py-0 shrink-0 font-medium">
+            {tx.accountSource}
           </span>
         )}
         <span className={`text-sm font-semibold shrink-0 ${

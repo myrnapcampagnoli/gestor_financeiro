@@ -52,13 +52,17 @@
 - [x] Vitest: transactions.create validação
 
 ## Pendente / Futuro
-- [x] Importação de PDF diretamente (upload de arquivo) - EM PROGRESSO
+- [x] Importação de PDF diretamente (upload de arquivo)
 - [x] Upload de CSV/Excel/PDF com parser e preview antes de importar
 - [x] Endpoint REST multipart para upload de arquivo
 - [x] Parser CSV (extratos bancários)
 - [x] Parser Excel (.xlsx)
-- [x] Parser PDF (contas/boletos)
+- [x] Parser PDF (contas/boletos) - Nubank e Banco 301 com coordenadas X
 - [x] Página /importar com UI mobile-friendly
+- [x] Parser PDF específico para Nubank PF (extrato com coordenadas X)
+- [x] Parser PDF específico para Banco 301 PJ (extrato com coordenadas X)
+- [x] Badge de conta de origem (Nubank PF / Banco 301 PJ) na tela de importação
+- [x] Salvar conta de origem no campo importedFrom ao importar
 - [ ] Sincronização automática Dropbox/OneDrive
 - [ ] Notificações por email (SMTP)
 - [ ] Relatórios mensais em PDF
@@ -79,11 +83,11 @@
 - [ ] Busca automática no Gmail (configurar e testar)
 
 ## Detecção de Duplicatas na Importação
-- [ ] Backend: procedure checkDuplicates que compara transações novas com o banco (data ±3 dias + valor igual + descrição similar)
-- [ ] Backend: retornar status de cada transação (nova, duplicata_exata, duplicata_similar)
-- [ ] UI: mostrar badge de duplicata no preview com transação existente para comparação
-- [ ] UI: botões por transação: Importar mesmo assim / Pular / Substituir existente
-- [ ] UI: botão "Pular todas duplicatas" e "Importar todas mesmo assim"
+- [x] Backend: procedure checkDuplicates que compara transações novas com o banco (data ±3 dias + valor igual + descrição similar)
+- [x] Backend: retornar status de cada transação (nova, duplicata_exata, duplicata_similar)
+- [x] UI: mostrar badge de duplicata no preview com transação existente para comparação
+- [x] UI: botões por transação: Importar mesmo assim / Pular / Substituir existente
+- [x] UI: botão "Pular todas duplicatas" e "Importar todas mesmo assim"
 
 ## Extração de Boletos PDF
 - [x] Parser de boleto: extrair vencimento, valor e linha digitável/código de barras
@@ -92,12 +96,12 @@
 - [x] Remover Gmail do menu, rota e página (usuária não vai usar Google Cloud)
 
 ## Transferências Entre Contas Próprias
-- [ ] Adicionar tipo 'transfer' no schema do banco (transactions.type)
-- [ ] Parser: detectar "Enviado" como possível transferência (não despesa)
-- [ ] Detecção inteligente: se existe "Recebido" com mesmo valor em ±1 dia, marcar par como transferência
-- [ ] UI: badge "Transferência?" na tela de importação com botão para classificar
-- [ ] Botão "Marcar como Transferência" em lote na tela de importação
-- [ ] Dashboard: tipo 'transfer' não entra no cálculo de receita/despesa
+- [x] Adicionar tipo 'transfer' no schema do banco (transactions.type)
+- [x] Parser: detectar "Enviado" como possível transferência (não despesa)
+- [x] Detecção inteligente: se existe "Recebido" com mesmo valor em ±1 dia, marcar par como transferência
+- [x] UI: badge "Transferência?" na tela de importação com botão para classificar
+- [x] Botão "Marcar como Transferência" em lote na tela de importação
+- [x] Dashboard: tipo 'transfer' não entra no cálculo de receita/despesa
 
 ## Backup de Dados
 - [ ] Opção 1: Botão "Exportar tudo" em Configurações → baixa CSV com todas as transações

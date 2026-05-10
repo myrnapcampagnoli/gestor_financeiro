@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCsv, parseExcel } from "./fileParser";
+import { parseCsv, parseExcel, extractBoleto } from "./fileParser";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as XLSX from "xlsx";
@@ -122,6 +122,63 @@ describe("parseExcel", () => {
     ]);
     const result = parseExcel(buf);
     expect(result[0].entityType).toBe("PF");
+  });
+});
+
+// ─── Boleto Parser Tests ─────────────────────────────────────────────────────
+
+describe("extractBoleto", () => {
+  it("detects boleto with linha digitável (5-5-5-1-14 format)", () => {
+    const text = `
+      Beneficiário: COPEL DISTRIBUIÇÃO S.A.
+      Vencimento: 15/06/2026
+      Valor: R$ 187,50
+      34191.09008 00000.000000 00000.000000 1 00000000018750
+    `;
+    const result = extractBoleto(text);
+    expect(result.isBoleto).toBe(true);
+    expect(result.beneficiario).toContain("COPEL");
+    expect(result.valor).toBe(187.5);
+    expect(result.vencimento).toBeInstanceOf(Date);
+  });
+
+  it("detects boleto with 47-digit barcode", () => {
+    const text = `
+      Código de barras: 34191000000000000000000000000000000000000000001
+      Valor: R$ 500,00
+    `;
+    const result = extractBoleto(text);
+    expect(result.isBoleto).toBe(true);
+    expect(result.valor).toBe(500);
+  });
+
+  it("returns isBoleto false for regular text", () => {
+    const text = "Pagamento de salário em 10/05/2026 no valor de R$ 5.000,00";
+    const result = extractBoleto(text);
+    expect(result.isBoleto).toBe(false);
+  });
+
+  it("extracts vencimento from boleto text", () => {
+    const text = `
+      Vencimento: 20/07/2026
+      Valor do documento: R$ 1.250,00
+      34191.09008 00000.000000 00000.000000 1 00000000125000
+    `;
+    const result = extractBoleto(text);
+    expect(result.vencimento).toBeInstanceOf(Date);
+    expect(result.vencimento?.getMonth()).toBe(6); // July = month 6 (0-indexed)
+    expect(result.vencimento?.getDate()).toBe(20);
+  });
+
+  it("extracts beneficiario from cedente field", () => {
+    const text = `
+      Cedente: SANEPAR - COMPANHIA DE SANEAMENTO DO PARANÁ
+      Vencimento: 10/08/2026
+      Valor: R$ 89,30
+      34191.09008 00000.000000 00000.000000 1 00000000008930
+    `;
+    const result = extractBoleto(text);
+    expect(result.beneficiario).toContain("SANEPAR");
   });
 });
 

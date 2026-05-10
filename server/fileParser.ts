@@ -22,6 +22,7 @@ export interface ParsedTransaction {
   notes?: string;
   boleto?: BoletoData;
   isTransferCandidate?: boolean; // true when detected as possible transfer between own accounts
+  accountSource?: string; // e.g. "Nubank PF", "Banco 301 PJ"
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -423,25 +424,237 @@ export function extractBoleto(text: string): BoletoData {
 
 // ─── PDF Parser ──────────────────────────────────────────────────────────────
 
-async function extractPdfText(buffer: Buffer): Promise<string> {
+// PDF text item with position
+interface PdfItem {
+  str: string;
+  x: number;
+  y: number;
+}
+
+async function extractPdfItems(buffer: Buffer): Promise<PdfItem[][]> {
   // Use pdfjs-dist — pure JS, works in production without system dependencies
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs") as any;
   const uint8 = new Uint8Array(buffer);
   const doc = await pdfjsLib.getDocument({ data: uint8, useSystemFonts: true }).promise;
-  let fullText = "";
+  const pages: PdfItem[][] = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pageText = content.items.map((item: any) => ("str" in item ? item.str : "")).join(" ");
-    fullText += pageText + "\n";
+    const items: PdfItem[] = content.items
+      .filter((item: any) => "str" in item && item.str.trim())
+      .map((item: any) => ({
+        str: item.str as string,
+        x: Math.round(item.transform[4]),
+        y: Math.round(item.transform[5]),
+      }));
+    pages.push(items);
   }
-  return fullText;
+  return pages;
+}
+
+// ── Nubank extrato parser ──────────────────────────────────────────────────────
+// Layout (x coordinates, approximate):
+//   Date: x≈58, format "DD JAN 2026"
+//   "Total de entradas/saídas": x≈120
+//   Amount with sign ("+ X" or "- X"): x≈490-515
+//   Transaction type: x≈120 (next row)
+//   Beneficiary: x≈261 (right column)
+//   Individual amount: x≈490-515
+function parseNubankExtrato(pages: PdfItem[][]): ParsedTransaction[] {
+  const results: ParsedTransaction[] = [];
+  const MONTH_MAP: Record<string, number> = {
+    JAN: 0, FEV: 1, MAR: 2, ABR: 3, MAI: 4, JUN: 5,
+    JUL: 6, AGO: 7, SET: 8, OUT: 9, NOV: 10, DEZ: 11,
+  };
+
+  for (const items of pages) {
+    // Group items by approximate Y position (within ±8px = same row)
+    const rowMap: Map<number, PdfItem[]> = new Map();
+    for (const item of items) {
+      let rowKey = -1;
+      const existingKeys = Array.from(rowMap.keys());
+      for (const k of existingKeys) {
+        if (Math.abs(k - item.y) <= 8) { rowKey = k; break; }
+      }
+      if (rowKey === -1) { rowKey = item.y; rowMap.set(rowKey, []); }
+      rowMap.get(rowKey)!.push(item);
+    }
+
+    // Sort rows by Y descending (top to bottom in PDF coordinates)
+    const sortedRows = Array.from(rowMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([, rowItems]) => rowItems.sort((a, b) => a.x - b.x));
+
+    let currentDate: Date | null = null;
+    let currentDirection: "income" | "expense" = "expense";
+
+    for (let ri = 0; ri < sortedRows.length; ri++) {
+      const row = sortedRows[ri];
+      const rowText = row.map(r => r.str).join(" ").trim();
+
+      // Skip footer/header lines
+      if (/Tem alguma dúvida|Caso a solução|Ouvidoria|VALORES EM R\$|Saldo (final|inicial)|Rendimento|nubank\.com/i.test(rowText)) continue;
+      if (/^Myrna Perez|CPF|Agência 0001 Conta|9172057-4/i.test(rowText)) continue;
+
+      // Detect date row: contains "DD MMM YYYY" pattern at left (x<80)
+      const fullDateMatch = rowText.match(/(\d{2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/i);
+      if (fullDateMatch && row.some(r => r.x < 90)) {
+        const [, day, mon, year] = fullDateMatch;
+        const month = MONTH_MAP[mon.toUpperCase()];
+        if (month !== undefined) {
+          currentDate = new Date(parseInt(year), month, parseInt(day));
+        }
+        // Check direction on same row
+        if (/total de entradas/i.test(rowText)) currentDirection = "income";
+        else if (/total de saídas/i.test(rowText)) currentDirection = "expense";
+        continue;
+      }
+
+      // Detect "Total de entradas/saídas" row (without date, continuation of previous date)
+      if (/^total de (entradas|saídas)/i.test(rowText) && row.some(r => r.x < 150)) {
+        currentDirection = /entradas/i.test(rowText) ? "income" : "expense";
+        continue;
+      }
+
+      // Skip "Movimentações" header
+      if (/^Movimentações$/i.test(rowText)) continue;
+
+      // Transaction rows: type at x≈120, beneficiary at x≈261, amount at x≈490+
+      const typeItems = row.filter(r => r.x >= 100 && r.x < 255);
+      const benefItems = row.filter(r => r.x >= 255 && r.x < 490);
+      const amtItems = row.filter(r => r.x >= 480);
+
+      if (!currentDate) continue;
+      if (typeItems.length === 0) continue;
+
+      const typeText = typeItems.map(r => r.str).join(" ").trim();
+      const benefText = benefItems.map(r => r.str).join(" ").trim();
+      const amtText = amtItems.map(r => r.str).join(" ").trim();
+
+      // Skip sub-total rows
+      if (/^total de/i.test(typeText)) continue;
+      // Skip pure number rows (continuation of description)
+      if (/^\d[\d.,]*$/.test(typeText)) continue;
+      // Skip very short or numeric-only
+      if (typeText.length < 3) continue;
+
+      const amount = parseAmount(amtText);
+      if (!amount || amount <= 0) continue;
+
+      // Build description: prefer beneficiary, fall back to type
+      let description = benefText.length > 3 ? benefText : typeText;
+      // Clean up CNPJ/CPF patterns from description for brevity
+      description = description.replace(/\s*-\s*[\d.\/\-]+\s*-\s*/g, " - ").trim();
+
+      results.push({
+        description: description.substring(0, 255),
+        amount,
+        type: currentDirection,
+        entityType: "PF",
+        dueDate: currentDate,
+        paymentMethod: detectPaymentMethod(typeText),
+        status: currentDate < new Date() ? "paid" : "pending",
+        notes: "Extrato Nubank importado",
+        accountSource: "Nubank PF",
+      });
+    }
+  }
+
+  return results;
+}
+
+// ── Banco 301 extrato parser ──────────────────────────────────────────────────
+// Layout (x coordinates, approximate):
+//   Date: x≈50, format DD/MM/YYYY
+//   Categoria (Pessoa Jurídica): x≈102
+//   Lançamento (PIX/Pagamento/Outros): x≈161
+//   Descrição: x≈215
+//   Entrada: x≈390-450 (R$ X,XX or "-")
+//   Saída: x≈450-540 (R$ X,XX or "-")
+function parseBanco301Extrato(pages: PdfItem[][]): ParsedTransaction[] {
+  const results: ParsedTransaction[] = [];
+
+  for (const items of pages) {
+    // Group items by approximate Y position (within ±10px = same row)
+    const rowMap: Map<number, PdfItem[]> = new Map();
+    for (const item of items) {
+      let rowKey = -1;
+      const existingKeys = Array.from(rowMap.keys());
+      for (const k of existingKeys) {
+        if (Math.abs(k - item.y) <= 10) { rowKey = k; break; }
+      }
+      if (rowKey === -1) { rowKey = item.y; rowMap.set(rowKey, []); }
+      rowMap.get(rowKey)!.push(item);
+    }
+
+    // Sort rows by Y descending (top to bottom in PDF coordinates)
+    const sortedRows = Array.from(rowMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([, rowItems]) => rowItems.sort((a, b) => a.x - b.x));
+
+    let currentDate: Date | null = null;
+
+    for (const row of sortedRows) {
+      const rowText = row.map(r => r.str).join(" ").trim();
+
+      // Skip header/footer rows
+      if (/Extrato gerado|Movimentações|Total de entradas|Total de saídas|^Lançamento|^\d+ de \d+$|CNPJ|Banco 301|De \d{2}\/\d{2}/i.test(rowText)) continue;
+      if (/^(Data|Categoria|Saldo do dia|Entrada|Saída|Pessoa|Jurídica|Física)$/i.test(rowText)) continue;
+      if (/^MYRNA|PEREZ|CAMPAGNOLI|APOIO|GESTAO|SAUDE$/i.test(rowText)) continue;
+
+      // Date item: x≈50, format DD/MM/YYYY
+      const dateItem = row.find(r => r.x < 75 && /^\d{2}\/\d{2}\/\d{4}$/.test(r.str.trim()));
+      if (dateItem) {
+        currentDate = parseDate(dateItem.str) || currentDate;
+      }
+
+      // Lançamento item: x≈161 (PIX, Pagamento, Outros, TED, etc.)
+      const lancItem = row.find(r => r.x >= 140 && r.x < 215 && /^(PIX|Pagamento|Outros|TED|DOC|Transferência|Débito|Crédito|Boleto)/i.test(r.str.trim()));
+      if (!lancItem) continue;
+
+      // Description: x≈215 to 390
+      const descItems = row.filter(r => r.x >= 215 && r.x < 390);
+      const description = descItems.map(r => r.str).join(" ").trim();
+
+      // Entrada: x≈390-455 (R$ X,XX or "-")
+      const entradaItems = row.filter(r => r.x >= 390 && r.x < 455);
+      const entradaText = entradaItems.map(r => r.str).join(" ").trim();
+      const entradaVal = entradaText !== "-" && entradaText ? parseAmount(entradaText) : null;
+
+      // Saída: x≈455-560 (R$ X,XX or "-")
+      const saidaItems = row.filter(r => r.x >= 455 && r.x < 560);
+      const saidaText = saidaItems.map(r => r.str).join(" ").trim();
+      const saidaVal = saidaText !== "-" && saidaText ? parseAmount(saidaText) : null;
+
+      const amount = entradaVal || saidaVal;
+      if (!amount || amount <= 0) continue;
+      if (!description || description.length < 2) continue;
+
+      const type: "income" | "expense" = entradaVal ? "income" : "expense";
+      const lancText = lancItem.str.trim();
+
+      results.push({
+        description: description.substring(0, 255),
+        amount,
+        type,
+        entityType: "PJ",
+        dueDate: currentDate || undefined,
+        paymentMethod: detectPaymentMethod(lancText),
+        status: currentDate && currentDate < new Date() ? "paid" : "pending",
+        notes: "Extrato Banco 301 importado",
+        accountSource: "Banco 301 PJ",
+      });
+    }
+  }
+
+  return results;
 }
 
 export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
-  const text = await extractPdfText(buffer);
+  const pages = await extractPdfItems(buffer);
+  const text = pages.map(items => items.map(i => i.str).join(" ")).join("\n");
 
   // ── Boleto detection first ────────────────────────────────────────────────
   const boletoData = extractBoleto(text);
@@ -469,43 +682,22 @@ export async function parsePdf(buffer: Buffer): Promise<ParsedTransaction[]> {
     ];
   }
 
-  const results: ParsedTransaction[] = [];
-
-  // ── Extrato bancário Banco 301 / Itau PJ detection ─────────────────────────
-  // Format: "DD/MM/YYYY  Categoria  Lançamento  Descrição  R$ X.XXX,XX  -"
-  // or:     "DD/MM/YYYY  Categoria  Lançamento  Descrição  -  R$ X.XXX,XX"
-  const isBankStatement = /Total de entradas|Total de saídas|Movimentações|Extrato gerado no dia/i.test(text);
-  if (isBankStatement) {
-    // Pattern: date + optional category + payment method + description + entrada/saida
-    // The PDF text comes as one long line per page with spaces between fields
-    // We look for: DD/MM/YYYY ... DESCRIPTION ... R$ VALUE ... - (or - ... R$ VALUE)
-    const bankLinePattern = /(\d{2}\/\d{2}\/\d{4})\s+(?:Pessoa Jurídica|Pessoa Física)?\s*(PIX|Pagamento|Transferência|Débito|Crédito|TED|DOC|Boleto)?\s+([A-Z][A-Z\s\.\-\/]+?)\s+(R\$\s*[\d.,]+|-)\s+(R\$\s*[\d.,]+|-)/gi;
-    let match;
-    while ((match = bankLinePattern.exec(text)) !== null) {
-      const [, dateStr, payMethod, description, entradaRaw, saidaRaw] = match;
-      const dueDate = parseDate(dateStr) || undefined;
-      const entradaVal = entradaRaw.trim() !== "-" ? parseAmount(entradaRaw.replace("R$", "").trim()) : null;
-      const saidaVal = saidaRaw.trim() !== "-" ? parseAmount(saidaRaw.replace("R$", "").trim()) : null;
-      const amount = entradaVal || saidaVal;
-      if (!amount || amount <= 0) continue;
-      const type: "income" | "expense" = entradaVal ? "income" : "expense";
-      const cleanDesc = description.trim().replace(/\s+/g, " ");
-      if (cleanDesc.length < 2) continue;
-      // Skip "Saldo do dia" lines
-      if (/saldo do dia/i.test(cleanDesc)) continue;
-      results.push({
-        description: cleanDesc.substring(0, 255),
-        amount,
-        type,
-        entityType: "PJ",
-        dueDate,
-        paymentMethod: payMethod ? detectPaymentMethod(payMethod) : "pix",
-        status: dueDate && dueDate < new Date() ? "paid" : "pending",
-        notes: `Extrato bancário importado`,
-      });
-    }
+  // ── Banco 301 detection ──────────────────────────────────────────────────
+  const isBanco301 = /Banco 301|33\.932\.723\/0001-88|3111376-4/i.test(text);
+  if (isBanco301) {
+    const results = parseBanco301Extrato(pages);
     if (results.length > 0) return results;
   }
+
+  // ── Nubank detection ─────────────────────────────────────────────────────
+  const isNubank = /9172057-4|Agência 0001 Conta/i.test(text) && /Movimentações|Total de entradas|Total de saídas/i.test(text);
+  if (isNubank) {
+    const results = parseNubankExtrato(pages);
+    if (results.length > 0) return results;
+  }
+
+  // ── Generic bank statement (fallback) ────────────────────────────────────
+  const results: ParsedTransaction[] = [];
 
   // Try to extract line-by-line transactions
   const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
