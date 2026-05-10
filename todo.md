@@ -90,3 +90,11 @@
 - [x] UI: exibir linha digitável com botão de cópia rápida
 - [x] Remover integração Gmail da navegação (não funciona sem Google Cloud)
 - [x] Remover Gmail do menu, rota e página (usuária não vai usar Google Cloud)
+
+## Transferências Entre Contas Próprias
+- [ ] Adicionar tipo 'transfer' no schema do banco (transactions.type)
+- [ ] Parser: detectar "Enviado" como possível transferência (não despesa)
+- [ ] Detecção inteligente: se existe "Recebido" com mesmo valor em ±1 dia, marcar par como transferência
+- [ ] UI: badge "Transferência?" na tela de importação com botão para classificar
+- [ ] Botão "Marcar como Transferência" em lote na tela de importação
+- [ ] Dashboard: tipo 'transfer' não entra no cálculo de receita/despesa

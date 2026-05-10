@@ -43,13 +43,14 @@ interface BoletoData {
 interface ParsedTx {
   description: string;
   amount: number;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   entityType: "PJ" | "PF";
   dueDate?: string; // ISO string from JSON
   paymentMethod: "credit" | "debit" | "pix" | "cash" | "boleto" | "other";
   status: "paid" | "pending";
   notes?: string;
   boleto?: BoletoData;
+  isTransferCandidate?: boolean;
 }
 
 type ImportSource = "import_csv" | "import_excel" | "import_pdf";
@@ -97,11 +98,24 @@ function TxRow({
         onClick={() => setExpanded((e) => !e)}
       >
         <span
-          className={`w-2 h-2 rounded-full shrink-0 ${tx.type === "income" ? "bg-green-500" : "bg-red-500"}`}
+          className={`w-2 h-2 rounded-full shrink-0 ${
+            tx.type === "income" ? "bg-green-500" :
+            tx.type === "transfer" ? "bg-blue-400" :
+            "bg-red-500"
+          }`}
         />
         <span className="flex-1 text-sm font-medium truncate">{tx.description}</span>
-        <span className={`text-sm font-semibold shrink-0 ${tx.type === "income" ? "text-green-600" : "text-red-600"}`}>
-          {tx.type === "income" ? "+" : "-"}{formatMoney(tx.amount)}
+        {tx.isTransferCandidate && (
+          <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-1.5 py-0 shrink-0 font-medium">
+            ⇄ Transfer
+          </span>
+        )}
+        <span className={`text-sm font-semibold shrink-0 ${
+          tx.type === "income" ? "text-green-600" :
+          tx.type === "transfer" ? "text-blue-600" :
+          "text-red-600"
+        }`}>
+          {tx.type === "income" ? "+" : tx.type === "transfer" ? "⇄" : "-"}{formatMoney(tx.amount)}
         </span>
         <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">{tx.entityType}</Badge>
         <button
@@ -152,10 +166,11 @@ function TxRow({
               <select
                 className="w-full mt-0.5 px-2 py-1.5 text-sm border border-border rounded-lg bg-background"
                 value={tx.type}
-                onChange={(e) => onUpdate(index, { ...tx, type: e.target.value as "income" | "expense" })}
+                onChange={(e) => onUpdate(index, { ...tx, type: e.target.value as "income" | "expense" | "transfer", isTransferCandidate: e.target.value === 'transfer' })}
               >
                 <option value="expense">Saída / Despesa</option>
                 <option value="income">Entrada / Receita</option>
+                <option value="transfer">⇄ Transferência (ignorar)</option>
               </select>
             </div>
             <div>
@@ -597,6 +612,26 @@ export default function Importar() {
                 }}
               >
                 Pular todas
+              </button>
+            </div>
+          )}
+
+          {/* Transfer detection banner */}
+          {transactions.some((t) => t.isTransferCandidate) && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-bold text-sm">⇄</span>
+                <span className="text-xs text-blue-800 font-medium">
+                  {transactions.filter((t) => t.isTransferCandidate).length} transferência(s) entre contas próprias detectada(s) — não entram no saldo
+                </span>
+              </div>
+              <button
+                className="text-xs text-blue-700 underline shrink-0"
+                onClick={() => setTransactions((prev) =>
+                  prev.map((t) => t.isTransferCandidate ? { ...t, type: 'transfer' as const } : t)
+                )}
+              >
+                Ignorar todas
               </button>
             </div>
           )}

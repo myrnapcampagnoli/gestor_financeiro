@@ -14,13 +14,14 @@ export interface BoletoData {
 export interface ParsedTransaction {
   description: string;
   amount: number;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   entityType: "PJ" | "PF";
   dueDate?: Date;
   paymentMethod: "credit" | "debit" | "pix" | "cash" | "boleto" | "other";
   status: "paid" | "pending";
   notes?: string;
   boleto?: BoletoData;
+  isTransferCandidate?: boolean; // true when detected as possible transfer between own accounts
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -262,14 +263,18 @@ export function parseExcel(buffer: Buffer): ParsedTransaction[] {
       // 3. Otherwise fall back to detectType
       const rawDetalhe = get(["detalhe", "detail", "descrição", "descricao"]);
       const rawValorNum = typeof rawAmount === "number" ? rawAmount : parseFloat(String(rawAmount || "").replace(/[R$\s]/g, "").replace(",", "."));
-      let type: "income" | "expense";
+      let type: "income" | "expense" | "transfer";
+      let isTransferCandidate = false;
+      const detalheStr = rawDetalhe ? String(rawDetalhe).toLowerCase() : "";
       if (!isNaN(rawValorNum) && rawValorNum < 0) {
         type = "expense";
-      } else if (rawDetalhe && String(rawDetalhe).toLowerCase().includes("recebido")) {
+      } else if (detalheStr.includes("recebido")) {
         type = "income";
-      } else if (rawDetalhe && String(rawDetalhe).toLowerCase().includes("enviado")) {
-        type = "expense";
-      } else if (rawDetalhe && (String(rawDetalhe).toLowerCase().includes("depósito") || String(rawDetalhe).toLowerCase().includes("deposito"))) {
+      } else if (detalheStr.includes("enviado")) {
+        // "Enviado" can be a transfer between own accounts — mark as candidate
+        type = "transfer";
+        isTransferCandidate = true;
+      } else if (detalheStr.includes("depósito") || detalheStr.includes("deposito")) {
         type = "income";
       } else {
         type = detectType(rawType || rawAmount, amount);
@@ -294,7 +299,26 @@ export function parseExcel(buffer: Buffer): ParsedTransaction[] {
         dueDate,
         paymentMethod,
         status,
+        isTransferCandidate,
       });
+    }
+  }
+
+  // Post-process: detect transfer pairs (same amount within ±1 day)
+  // If an "Enviado" (transfer candidate) has a matching "Recebido" (income) with same amount ±1 day,
+  // it's almost certainly an internal transfer — mark both as transfer
+  const candidates = results.filter(r => r.isTransferCandidate);
+  for (const candidate of candidates) {
+    const match = results.find(r =>
+      r !== candidate &&
+      r.type === 'income' &&
+      Math.abs(r.amount - candidate.amount) < 0.02 &&
+      r.dueDate && candidate.dueDate &&
+      Math.abs(r.dueDate.getTime() - candidate.dueDate.getTime()) <= 86400000 // ±1 day
+    );
+    if (match) {
+      match.type = 'transfer';
+      match.isTransferCandidate = true;
     }
   }
 
